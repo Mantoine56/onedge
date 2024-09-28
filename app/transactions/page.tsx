@@ -61,6 +61,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { usePathname } from 'next/navigation'
+import AddTransactionModal from '@/components/AddTransactionModal';
 
 export default function TransactionsPage() {
   const { user, logout } = useAuth();
@@ -72,6 +73,8 @@ export default function TransactionsPage() {
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const router = useRouter()
   const pathname = usePathname()
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [transactionType, setTransactionType] = useState<'income' | 'expense'>('income');
 
   const handleDeleteTransaction = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent the row click event from firing
@@ -134,12 +137,17 @@ export default function TransactionsPage() {
     setSelectedTransaction(transaction);
   }
 
+  const openAddModal = (type: 'income' | 'expense') => {
+    setTransactionType(type);
+    setIsAddModalOpen(true);
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-dot-pattern">
       <Header 
-        isAddTransactionOpen={isAddTransactionOpen}
-        setIsAddTransactionOpen={setIsAddTransactionOpen}
-        handleAddTransaction={handleAddTransaction}
+        isAddTransactionOpen={isAddModalOpen}
+        setIsAddTransactionOpen={setIsAddModalOpen}
+        handleAddTransaction={() => openAddModal('income')} // Open modal for income by default
       />
       <main className="flex-1 p-4 md:p-6">
         <h1 className="text-2xl font-bold mb-4">Transactions</h1>
@@ -262,48 +270,24 @@ export default function TransactionsPage() {
           </Table>
         </div>
       </main>
-      <Dialog open={isAddTransactionOpen} onOpenChange={setIsAddTransactionOpen}>
-        <DialogTrigger asChild>
-          <Button 
-            variant="default" 
-            className="fixed bottom-4 right-4 bg-black text-white hover:bg-gray-800 rounded-full p-4 shadow-lg"
-          >
-            <PlusCircle className="h-6 w-6" />
-            <span className="sr-only">Add Transaction</span>
-          </Button>
-        </DialogTrigger>
-      </Dialog>
-      <Dialog open={!!selectedTransaction} onOpenChange={() => setSelectedTransaction(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Transaction Details</DialogTitle>
-            <DialogDescription>
-              View the details of the selected transaction.
-            </DialogDescription>
-          </DialogHeader>
-          {selectedTransaction && (
-            <div className="space-y-4">
-              <div>
-                <Label>Customer</Label>
-                <p>{selectedTransaction.customerName}</p>
-              </div>
-              <div>
-                <Label>Amount</Label>
-                <p>${selectedTransaction.amount.toFixed(2)}</p>
-              </div>
-              <div>
-                <Label>Date</Label>
-                <p>{format(selectedTransaction.date, 'MMMM d, yyyy')}</p>
-              </div>
-              <div>
-                <Label>Notes</Label>
-                <p>{selectedTransaction.notes}</p>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
       
+      {/* Floating "+" button */}
+      <Button 
+        variant="default" 
+        className="fixed bottom-4 right-4 bg-black text-white hover:bg-gray-800 rounded-full p-4 shadow-lg"
+        onClick={() => openAddModal('income')} // Open modal for income by default
+      >
+        <PlusCircle className="h-6 w-6" />
+        <span className="sr-only">Add Transaction</span>
+      </Button>
+
+      {/* AddTransactionModal */}
+      <AddTransactionModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        transactionType={transactionType}
+      />
+
       {notification && (
         <div className={`fixed top-4 right-4 p-4 rounded-md ${
           notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
