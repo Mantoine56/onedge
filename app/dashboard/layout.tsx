@@ -3,6 +3,7 @@
 import { useAuth } from '@/app/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { ReactNode } from 'react'; // Add this import
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -18,5 +19,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     return <div>Loading...</div>;
   }
 
-  return user ? <>{children}</> : null;
+  if (!user) {
+    return null;
+  }
+
+  return <>{children}</>;
 }

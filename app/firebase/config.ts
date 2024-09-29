@@ -1,6 +1,6 @@
 // Client-side Firebase configuration
 import { initializeApp, getApps } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, Auth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getAnalytics } from "firebase/analytics";
 
@@ -14,7 +14,11 @@ const clientConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-let clientApp, clientAuth, clientDb, analytics, googleProvider;
+let clientApp: ReturnType<typeof initializeApp> | undefined;
+let clientAuth: Auth | undefined;
+let clientDb: ReturnType<typeof getFirestore> | undefined;
+let analytics: ReturnType<typeof getAnalytics> | undefined;
+let googleProvider: GoogleAuthProvider | undefined;
 
 if (typeof window !== 'undefined' && !getApps().length) {
   clientApp = initializeApp(clientConfig);

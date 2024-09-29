@@ -1,23 +1,18 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@/app/hooks/useAuth'
-import { useTransactions, Transaction } from '@/hooks/useTransactions'
+import { useTransactions } from '@/hooks/useTransactions'
 import { Header } from '@/components/Header'
-import Link from 'next/link'
 import { format } from 'date-fns'
-import { Calendar as CalendarIcon, ChevronDown, DollarSign, Trash2, UserCircle, Menu, LogOut, User, PlusCircle, X } from 'lucide-react'
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Calendar as CalendarIcon, ChevronDown, Trash2, PlusCircle } from 'lucide-react'
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
+import { DateRange } from 'react-day-picker'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -44,40 +39,18 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-} from "@/components/ui/sheet"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { usePathname } from 'next/navigation'
 import AddTransactionModal from '@/components/AddTransactionModal';
 
 export default function TransactionsPage() {
-  const { user, logout } = useAuth();
-  const { transactions, addTransaction, deleteTransaction } = useTransactions();
-  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined } | undefined>(undefined);
+  const { transactions, deleteTransaction } = useTransactions();
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false)
-  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
-  const router = useRouter()
-  const pathname = usePathname()
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [transactionType, setTransactionType] = useState<'income' | 'expense'>('income');
 
   const handleDeleteTransaction = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent the row click event from firing
+    e.stopPropagation();
     try {
       await deleteTransaction(id);
       setNotification({ message: "Transaction deleted successfully", type: 'success' });
@@ -87,29 +60,6 @@ export default function TransactionsPage() {
     }
   }
 
-  const handleAddTransaction = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-    const amount = formData.get('amount') as string;
-    const customerName = formData.get('customerName') as string;
-    const notes = formData.get('notes') as string;
-
-    try {
-      await addTransaction({
-        amount: parseFloat(amount),
-        customerName,
-        notes,
-      });
-      setIsAddTransactionOpen(false);
-      setNotification({ message: "Transaction added successfully", type: 'success' });
-    } catch (error) {
-      console.error('Error adding transaction:', error);
-      setNotification({ message: "Error adding transaction. Please try again.", type: 'error' });
-    }
-  };
-
-  // Add this useEffect to clear the notification after 3 seconds
   useEffect(() => {
     if (notification) {
       const timer = setTimeout(() => {
@@ -121,21 +71,13 @@ export default function TransactionsPage() {
 
   const filteredTransactions = transactions.filter(transaction => {
     if (!dateRange || !dateRange.from || !dateRange.to) return true;
-    return transaction.date >= dateRange.from && transaction.date <= dateRange.to;
+    const transactionDate = new Date(transaction.date);
+    return transactionDate >= dateRange.from && transactionDate <= dateRange.to;
   })
 
   const sortedTransactions = [...filteredTransactions].sort((a, b) => {
-    return sortOrder === 'asc' ? a.amount - b.amount : b.amount - a.amount
-  })
-
-  const handleLogout = async () => {
-    await logout()
-    router.push('/login')
-  }
-
-  const handleRowClick = (transaction: Transaction) => {
-    setSelectedTransaction(transaction);
-  }
+    return sortOrder === 'asc' ? a.amount - b.amount : b.amount - a.amount;
+  });
 
   const openAddModal = (type: 'income' | 'expense') => {
     setTransactionType(type);
@@ -147,7 +89,6 @@ export default function TransactionsPage() {
       <Header 
         isAddTransactionOpen={isAddModalOpen}
         setIsAddTransactionOpen={setIsAddModalOpen}
-        handleAddTransaction={() => openAddModal('income')} // Open modal for income by default
       />
       <main className="flex-1 p-4 md:p-6">
         <h1 className="text-2xl font-bold mb-4">Transactions</h1>
@@ -175,7 +116,7 @@ export default function TransactionsPage() {
                 mode="range"
                 defaultMonth={dateRange?.from}
                 selected={dateRange}
-                onSelect={setDateRange}
+                onSelect={(newDateRange: DateRange | undefined) => setDateRange(newDateRange)}
                 numberOfMonths={2}
               />
             </PopoverContent>
@@ -219,7 +160,6 @@ export default function TransactionsPage() {
                 <TableRow 
                   key={transaction.id} 
                   className="cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleRowClick(transaction)}
                 >
                   <TableCell>
                     <div className="flex items-center">
@@ -228,7 +168,6 @@ export default function TransactionsPage() {
                       </Avatar>
                       <div>
                         <p className="font-medium">{transaction.customerName}</p>
-                        {/* Remove the email line as it's not in the Transaction interface */}
                       </div>
                     </div>
                   </TableCell>
@@ -241,13 +180,13 @@ export default function TransactionsPage() {
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          onClick={(e) => e.stopPropagation()} // Prevent row click when opening dialog
+                          onClick={(e) => e.stopPropagation()}
                         >
                           <Trash2 className="h-4 w-4" />
                           <span className="sr-only">Delete transaction</span>
                         </Button>
                       </AlertDialogTrigger>
-                      <AlertDialogContent onClick={(e) => e.stopPropagation()}> {/* Prevent row click when dialog is open */}
+                      <AlertDialogContent onClick={(e) => e.stopPropagation()}>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                           <AlertDialogDescription>
@@ -271,17 +210,15 @@ export default function TransactionsPage() {
         </div>
       </main>
       
-      {/* Floating "+" button */}
       <Button 
         variant="default" 
         className="fixed bottom-4 right-4 bg-black text-white hover:bg-gray-800 rounded-full p-4 shadow-lg"
-        onClick={() => openAddModal('income')} // Open modal for income by default
+        onClick={() => openAddModal('income')}
       >
         <PlusCircle className="h-6 w-6" />
         <span className="sr-only">Add Transaction</span>
       </Button>
 
-      {/* AddTransactionModal */}
       <AddTransactionModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}

@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
+import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import { 
   BarChart, 
@@ -20,22 +19,9 @@ import {
   Pie,
   Cell
 } from 'recharts'
-import { DollarSign, UserCircle, Menu, LogOut, User, PlusCircle, CreditCard, Activity, CalendarIcon } from 'lucide-react'
+import { DollarSign, PlusCircle, CreditCard, Activity, CalendarIcon } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-} from "@/components/ui/sheet"
 import {
   Dialog,
   DialogContent,
@@ -47,8 +33,6 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { useRouter, usePathname } from 'next/navigation'
-import { useAuth } from '@/app/hooks/useAuth'
 import { useTransactions } from '@/hooks/useTransactions'
 import { Calendar } from "@/components/ui/calendar"
 import {
@@ -57,36 +41,166 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Header } from '@/components/Header'
+import { Transaction } from '@/types/transaction'
+
+// Add this import
+import { DateRange } from 'react-day-picker'
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042']
+
+// Update the ChartDataPoint interface
+interface ChartDataPoint {
+  month?: string;
+  date?: string;
+  revenue?: number;
+  volume?: number;
+  average?: number;
+  range?: string;
+  value?: number;
+}
+
+interface ChartData {
+  revenueData: {
+    monthly: ChartDataPoint[];
+    daily: ChartDataPoint[];
+  };
+  transactionVolumeData: {
+    monthly: ChartDataPoint[];
+    daily: ChartDataPoint[];
+  };
+  averageTransactionData: {
+    monthly: ChartDataPoint[];
+    daily: ChartDataPoint[];
+  };
+  transactionDistributionData: {
+    range: string;
+    value: number;
+  }[];
+  mrrData: {
+    monthly: ChartDataPoint[];
+    daily: ChartDataPoint[];
+  };
+}
 
 export default function AnalyticsPage() {
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
-  const { logout } = useAuth()
   const { transactions, addTransaction, metrics } = useTransactions()
-  const [viewModes, setViewModes] = useState({
+  const [viewModes, setViewModes] = useState<{
+    revenue: 'monthly' | 'daily';
+    volume: 'monthly' | 'daily';
+    avgTransaction: 'monthly' | 'daily';
+    mrrGrowth: 'monthly' | 'daily';
+  }>({
     revenue: 'daily',
     volume: 'daily',
     avgTransaction: 'daily',
     mrrGrowth: 'daily'
   })
-  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>(() => {
-    const today = new Date();
-    const fiveDaysAgo = new Date(today);
-    fiveDaysAgo.setDate(today.getDate() - 4); // This will give us 5 days of data including today
-    return { from: fiveDaysAgo, to: today };
-  });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: undefined,
+    to: undefined
+  })
 
-  const [chartData, setChartData] = useState({
+  const [chartData, setChartData] = useState<ChartData>({
     revenueData: { monthly: [], daily: [] },
     transactionVolumeData: { monthly: [], daily: [] },
-    avgTransactionData: { monthly: [], daily: [] },
+    averageTransactionData: { monthly: [], daily: [] },
     transactionDistributionData: [],
-    mrrGrowthData: { monthly: [], daily: [] }
+    mrrData: { monthly: [], daily: [] }
   })
+
+  const calculateChartData = useCallback((transactions: Transaction[]) => {
+    // Filter transactions based on date range
+    const filteredTransactions = transactions.filter(t => {
+      const transactionDate = new Date(t.date);
+      return (!dateRange?.from || transactionDate >= dateRange.from) && 
+             (!dateRange?.to || transactionDate <= dateRange.to);
+    });
+
+    // Initialize data for each day in the range
+    const currentDate = dateRange?.from ? new Date(dateRange.from) : new Date();
+    const endDate = dateRange?.to ? new Date(dateRange.to) : new Date();
+    
+    // If both dates are the same (or undefined), set the range to the last 30 days
+    if (currentDate.getTime() === endDate.getTime()) {
+      currentDate.setDate(currentDate.getDate() - 30);
+    }
+
+    const dailyData: { [key: string]: number } = {};
+    while (currentDate <= endDate) {
+      const dayKey = currentDate.toISOString().split('T')[0];
+      dailyData[dayKey] = 0;
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const revenueByMonth: { [key: string]: number } = {};
+    const revenueByDay: { [key: string]: number } = {};
+    const volumeByMonth: { [key: string]: number } = {};
+    const volumeByDay: { [key: string]: number } = {};
+    const avgByMonth: { [key: string]: { total: number, count: number } } = {};
+    const avgByDay: { [key: string]: { total: number, count: number } } = {};
+    const distributionRanges = {'$0-$100': 0, '$101-$500': 0, '$501-$1000': 0, '$1001+': 0};
+    const mrrByMonth: { [key: string]: number } = {};
+    const mrrByDay: { [key: string]: number } = {};
+
+    filteredTransactions.forEach(t => {
+      const date = new Date(t.date);
+      const month = monthNames[date.getMonth()];
+      const year = date.getFullYear();
+      const monthKey = `${month} ${year}`;
+      const dayKey = date.toISOString().split('T')[0];
+
+      // Revenue Data
+      revenueByMonth[monthKey] = (revenueByMonth[monthKey] || 0) + t.amount;
+      revenueByDay[dayKey] = (revenueByDay[dayKey] || 0) + t.amount;
+
+      // Transaction Volume Data
+      volumeByMonth[monthKey] = (volumeByMonth[monthKey] || 0) + 1;
+      volumeByDay[dayKey] = (volumeByDay[dayKey] || 0) + 1;
+
+      // Average Transaction Data
+      if (!avgByMonth[monthKey]) avgByMonth[monthKey] = { total: 0, count: 0 };
+      avgByMonth[monthKey].total += t.amount;
+      avgByMonth[monthKey].count += 1;
+
+      if (!avgByDay[dayKey]) avgByDay[dayKey] = { total: 0, count: 0 };
+      avgByDay[dayKey].total += t.amount;
+      avgByDay[dayKey].count += 1;
+
+      // Transaction Distribution Data
+      if (t.amount <= 100) distributionRanges['$0-$100']++;
+      else if (t.amount <= 500) distributionRanges['$101-$500']++;
+      else if (t.amount <= 1000) distributionRanges['$501-$1000']++;
+      else distributionRanges['$1001+']++;
+
+      // MRR Data
+      mrrByMonth[monthKey] = (mrrByMonth[monthKey] || 0) + t.amount;
+      mrrByDay[dayKey] = (mrrByDay[dayKey] || 0) + t.amount;
+    });
+
+    setChartData({
+      revenueData: {
+        monthly: Object.entries(revenueByMonth).map(([month, revenue]) => ({ month, revenue })),
+        daily: Object.entries(revenueByDay).map(([date, revenue]) => ({ date, revenue }))
+      },
+      transactionVolumeData: {
+        monthly: Object.entries(volumeByMonth).map(([month, volume]) => ({ month, volume })),
+        daily: Object.entries(volumeByDay).map(([date, volume]) => ({ date, volume }))
+      },
+      averageTransactionData: {
+        monthly: Object.entries(avgByMonth).map(([month, data]) => ({ month, average: data.total / data.count })),
+        daily: Object.entries(avgByDay).map(([date, data]) => ({ date, average: data.total / data.count }))
+      },
+      transactionDistributionData: Object.entries(distributionRanges).map(([range, value]) => ({ range, value })),
+      mrrData: {
+        monthly: Object.entries(mrrByMonth).map(([month, revenue]) => ({ month, revenue })),
+        daily: Object.entries(mrrByDay).map(([date, revenue]) => ({ date, revenue }))
+      }
+    })
+  }, [dateRange]);
 
   useEffect(() => {
     setIsLoading(true)
@@ -99,105 +213,10 @@ export default function AnalyticsPage() {
       setError('Failed to load analytics data')
       setIsLoading(false)
     }
-  }, [transactions, dateRange])
+  }, [calculateChartData, transactions])
 
-  const calculateChartData = (transactions) => {
-    // Filter transactions based on date range
-    const filteredTransactions = transactions.filter(t => {
-      const transactionDate = new Date(t.date);
-      return (!dateRange.from || transactionDate >= dateRange.from) && 
-             (!dateRange.to || transactionDate <= dateRange.to);
-    });
-
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const revenueByMonth = {}
-    const revenueByDay = {}
-    const volumeByMonth = {}
-    const volumeByDay = {}
-    const avgByMonth = {}
-    const avgByDay = {}
-    const distributionRanges = {'$0-$100': 0, '$101-$500': 0, '$501-$1000': 0, '$1001+': 0}
-    const mrrByMonth = {}
-    const mrrByDay = {}
-
-    // Initialize data for each day in the range
-    let currentDate = new Date(dateRange.from);
-    const endDate = new Date(dateRange.to);
-    while (currentDate <= endDate) {
-      const dayKey = currentDate.toISOString().split('T')[0];
-      revenueByDay[dayKey] = 0;
-      volumeByDay[dayKey] = 0;
-      avgByDay[dayKey] = { total: 0, count: 0 };
-      mrrByDay[dayKey] = 0;
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-
-    filteredTransactions.forEach(t => {
-      const date = new Date(t.date)
-      const month = monthNames[date.getMonth()]
-      const year = date.getFullYear()
-      const monthKey = `${month} ${year}`
-      const dayKey = date.toISOString().split('T')[0]
-
-      // Revenue Data
-      revenueByMonth[monthKey] = (revenueByMonth[monthKey] || 0) + t.amount
-      revenueByDay[dayKey] = (revenueByDay[dayKey] || 0) + t.amount
-
-      // Transaction Volume Data
-      volumeByMonth[monthKey] = (volumeByMonth[monthKey] || 0) + 1
-      volumeByDay[dayKey] = (volumeByDay[dayKey] || 0) + 1
-
-      // Average Transaction Data
-      if (!avgByMonth[monthKey]) avgByMonth[monthKey] = { total: 0, count: 0 }
-      avgByMonth[monthKey].total += t.amount
-      avgByMonth[monthKey].count += 1
-
-      if (!avgByDay[dayKey]) avgByDay[dayKey] = { total: 0, count: 0 }
-      avgByDay[dayKey].total += t.amount
-      avgByDay[dayKey].count += 1
-
-      // Transaction Distribution Data
-      if (t.amount <= 100) distributionRanges['$0-$100']++
-      else if (t.amount <= 500) distributionRanges['$101-$500']++
-      else if (t.amount <= 1000) distributionRanges['$501-$1000']++
-      else distributionRanges['$1001+']++
-
-      // MRR Growth Data (simplified, assuming each transaction contributes to MRR)
-      mrrByMonth[monthKey] = (mrrByMonth[monthKey] || 0) + (t.amount / 30)  // Dividing by 30 to get a daily value
-      mrrByDay[dayKey] = (mrrByDay[dayKey] || 0) + (t.amount / 30)
-    })
-
-    setChartData({
-      revenueData: {
-        monthly: Object.entries(revenueByMonth).map(([month, revenue]) => ({ month, revenue })),
-        daily: Object.entries(revenueByDay).map(([date, revenue]) => ({ date, revenue }))
-      },
-      transactionVolumeData: {
-        monthly: Object.entries(volumeByMonth).map(([month, volume]) => ({ month, volume })),
-        daily: Object.entries(volumeByDay).map(([date, volume]) => ({ date, volume }))
-      },
-      avgTransactionData: {
-        monthly: Object.entries(avgByMonth).map(([month, data]) => ({ 
-          month, 
-          amount: data.count > 0 ? data.total / data.count : 0
-        })),
-        daily: Object.entries(avgByDay).map(([date, data]) => ({ 
-          date, 
-          amount: data.count > 0 ? data.total / data.count : 0
-        }))
-      },
-      transactionDistributionData: Object.entries(distributionRanges).map(([range, value]) => ({ 
-        name: range, 
-        value 
-      })),
-      mrrGrowthData: {
-        monthly: Object.entries(mrrByMonth).map(([month, mrr]) => ({ month, mrr })),
-        daily: Object.entries(mrrByDay).map(([date, mrr]) => ({ date, mrr }))
-      }
-    })
-  }
-
-  const toggleViewMode = (chart) => {
+  // Update this function with a type annotation for 'chart'
+  const toggleViewMode = (chart: keyof typeof viewModes) => {
     setViewModes(prev => ({
       ...prev,
       [chart]: prev[chart] === 'monthly' ? 'daily' : 'monthly'
@@ -215,19 +234,14 @@ export default function AnalyticsPage() {
     try {
       await addTransaction({
         amount: parseFloat(amount),
-        notes,
         customerName,
+        notes,
       });
       setIsAddTransactionOpen(false);
     } catch (error) {
       console.error('Error adding transaction:', error);
     }
   };
-
-  const handleLogout = async () => {
-    await logout()
-    router.push('/login')
-  }
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
@@ -251,7 +265,6 @@ export default function AnalyticsPage() {
       <Header 
         isAddTransactionOpen={isAddTransactionOpen}
         setIsAddTransactionOpen={setIsAddTransactionOpen}
-        handleAddTransaction={handleAddTransaction}
       />
       <main className="flex-1 p-4 md:p-6 overflow-auto">
         <h1 className="text-2xl font-bold mb-4">Analytics</h1>
@@ -261,7 +274,7 @@ export default function AnalyticsPage() {
             <PopoverTrigger asChild>
               <Button variant="outline" className="w-[280px] justify-start text-left font-normal">
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange.from && dateRange.to ? (
+                {dateRange?.from && dateRange?.to ? (
                   <>
                     {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
                   </>
@@ -274,9 +287,9 @@ export default function AnalyticsPage() {
               <Calendar
                 initialFocus
                 mode="range"
-                defaultMonth={dateRange.from}
+                defaultMonth={dateRange?.from}
                 selected={dateRange}
-                onSelect={setDateRange}
+                onSelect={(range: DateRange | undefined) => setDateRange(range)}
                 numberOfMonths={2}
               />
             </PopoverContent>
@@ -336,10 +349,10 @@ export default function AnalyticsPage() {
 
         <div className="grid gap-6 md:grid-cols-2 mb-6">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Revenue Over Time</CardTitle>
-              <Button onClick={() => toggleViewMode('revenue')}>
-                {viewModes.revenue === 'monthly' ? 'Switch to Daily' : 'Switch to Monthly'}
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-md font-medium">Revenue</CardTitle>
+              <Button onClick={() => toggleViewMode('revenue')} variant="outline" size="sm">
+                {viewModes.revenue === 'monthly' ? 'View Daily' : 'View Monthly'}
               </Button>
             </CardHeader>
             <CardContent>
@@ -348,9 +361,11 @@ export default function AnalyticsPage() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
                     dataKey={viewModes.revenue === 'monthly' ? 'month' : 'date'} 
-                    allowDataOverflow={true}
+                    angle={-45} 
+                    textAnchor="end" 
+                    height={70} 
                   />
-                  <YAxis allowDataOverflow={true} />
+                  <YAxis />
                   <Tooltip />
                   <Legend />
                   <Line type="monotone" dataKey="revenue" stroke="#8884d8" activeDot={{ r: 8 }} />
@@ -393,7 +408,7 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={chartData.avgTransactionData[viewModes.avgTransaction]}>
+                <LineChart data={chartData.averageTransactionData[viewModes.avgTransaction]}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
                     dataKey={viewModes.avgTransaction === 'monthly' ? 'month' : 'date'} 
@@ -444,7 +459,7 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={chartData.mrrGrowthData[viewModes.mrrGrowth]}>
+              <AreaChart data={chartData.mrrData[viewModes.mrrGrowth]}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
                   dataKey={viewModes.mrrGrowth === 'monthly' ? 'month' : 'date'} 
@@ -453,7 +468,7 @@ export default function AnalyticsPage() {
                 <YAxis allowDataOverflow={true} />
                 <Tooltip />
                 <Legend />
-                <Area type="monotone" dataKey="mrr" stroke="#8884d8" fill="#8884d8" />
+                <Area type="monotone" dataKey="revenue" stroke="#8884d8" fill="#8884d8" />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>

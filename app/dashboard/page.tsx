@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useTransactions } from '@/hooks/useTransactions'
 import { Header } from '@/components/Header'
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { 
@@ -72,7 +72,6 @@ export default function DashboardPage() {
       <Header 
         isAddTransactionOpen={isAddTransactionOpen}
         setIsAddTransactionOpen={setIsAddTransactionOpen}
-        handleAddTransaction={handleAddTransaction}
       />
       <main className="flex-1 p-4 md:p-6">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

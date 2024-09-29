@@ -56,6 +56,7 @@ DialogTrigger,
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { DateRange } from 'react-day-picker'
 
 type Transaction = {
 id: string
@@ -75,10 +76,7 @@ const initialTransactions: Transaction[] = [
 
 export function Page() {
 const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions)
-const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
-  from: undefined,
-  to: undefined,
-})
+const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
 const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false)
 
@@ -94,7 +92,7 @@ const handleAddTransaction = (event: React.FormEvent) => {
 }
 
 const filteredTransactions = transactions.filter(transaction => {
-  if (!dateRange.from || !dateRange.to) return true
+  if (!dateRange || !dateRange.from || !dateRange.to) return true
   return transaction.date >= dateRange.from && transaction.date <= dateRange.to
 })
 
@@ -206,7 +204,7 @@ return (
           <PopoverTrigger asChild>
             <Button variant="outline" className="w-full md:w-auto justify-start text-left font-normal">
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateRange.from ? (
+              {dateRange?.from ? (
                 dateRange.to ? (
                   <>
                     {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
@@ -223,9 +221,9 @@ return (
             <Calendar
               initialFocus
               mode="range"
-              defaultMonth={dateRange.from}
+              defaultMonth={dateRange?.from}
               selected={dateRange}
-              onSelect={setDateRange}
+              onSelect={(newDateRange: DateRange | undefined) => setDateRange(newDateRange)}
               numberOfMonths={2}
             />
           </PopoverContent>

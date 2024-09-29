@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/app/hooks/useAuth'
 import { useTransactions } from '@/hooks/useTransactions'
 import { Header } from '@/components/Header'
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -16,38 +16,17 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog"
-import {
-  DropdownMenu,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-} from "@/components/ui/dropdown-menu"
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-} from "@/components/ui/sheet"
 import { 
-  DollarSign, 
-  PlusCircle,
-  UserCircle,
-  Menu,
-  LogOut,
-  User,
   Mail,
   Phone,
-  MapPin,
   Key,
   Trash,
   RefreshCw
 } from 'lucide-react'
 import { auth } from '@/app/firebase'
-import { updatePassword, deleteUser, sendPasswordResetEmail } from 'firebase/auth'
+import { deleteUser, sendPasswordResetEmail } from 'firebase/auth'
 
 export default function ProfilePage() {
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false)
@@ -56,46 +35,8 @@ export default function ProfilePage() {
   const [isResetDataOpen, setIsResetDataOpen] = useState(false)
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null)
   const router = useRouter()
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const { deleteAllTransactions } = useTransactions()
-
-  const handleAddTransaction = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-    const amount = formData.get('amount') as string;
-    const notes = formData.get('notes') as string;
-    const customerName = formData.get('customerName') as string;
-
-    try {
-      const response = await fetch('/api/transactions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount: parseFloat(amount),
-          notes,
-          customerName,
-        }),
-      });
-
-      if (response.ok) {
-        // Handle successful transaction addition
-        setIsAddTransactionOpen(false);
-        // You might want to refresh the transaction list or update the UI
-      } else {
-        // Handle errors
-      }
-    } catch (error) {
-      console.error('Error adding transaction:', error);
-    }
-  };
-
-  const handleLogout = async () => {
-    await logout()
-    router.push('/login')
-  }
 
   const handleResetPassword = async () => {
     if (!user?.email) return
@@ -123,13 +64,12 @@ export default function ProfilePage() {
   }
 
   const handleResetData = async () => {
-    if (!user) return
     try {
       await deleteAllTransactions()
-      setNotification({ type: 'success', message: 'Your account data has been reset.' })
+      setNotification({ type: 'success', message: 'All transactions have been deleted.' })
     } catch (error) {
-      console.error('Error resetting account data:', error)
-      setNotification({ type: 'error', message: 'Failed to reset account data. Please try again.' })
+      console.error('Error resetting data:', error)
+      setNotification({ type: 'error', message: 'Failed to reset data. Please try again.' })
     }
     setIsResetDataOpen(false)
   }
@@ -139,22 +79,20 @@ export default function ProfilePage() {
       <Header 
         isAddTransactionOpen={isAddTransactionOpen}
         setIsAddTransactionOpen={setIsAddTransactionOpen}
-        handleAddTransaction={handleAddTransaction}
       />
       <main className="flex-1 p-4 md:p-6">
-        <h1 className="text-2xl font-bold mb-4">User Profile</h1>
         <Card>
           <CardHeader>
-            <CardTitle>Personal Information</CardTitle>
+            <CardTitle>User Profile</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center space-x-4">
               <Avatar className="h-20 w-20">
-                <AvatarFallback>{user?.displayName?.[0] || user?.email?.[0] || 'U'}</AvatarFallback>
+                <AvatarFallback>{user?.displayName?.split(' ').map(n => n[0]).join('') || user?.email?.charAt(0).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div>
-                <h2 className="text-xl font-semibold">{user?.displayName || 'User'}</h2>
-                <p className="text-sm text-gray-500">Member since {user?.metadata.creationTime ? new Date(user.metadata.creationTime).toLocaleDateString() : 'Unknown'}</p>
+                <h2 className="text-2xl font-bold">{user?.displayName || 'User'}</h2>
+                <p className="text-sm text-gray-500">Member since {user?.metadata.creationTime ? new Date(user.metadata.creationTime).toLocaleDateString() : 'N/A'}</p>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -4,10 +4,6 @@ import { useAuth } from '@/app/hooks/useAuth'
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
 import {
@@ -35,10 +31,9 @@ import {
 interface HeaderProps {
   isAddTransactionOpen: boolean;
   setIsAddTransactionOpen: (isOpen: boolean) => void;
-  handleAddTransaction: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
 }
 
-export function Header({ isAddTransactionOpen, setIsAddTransactionOpen, handleAddTransaction }: HeaderProps) {
+export function Header({ isAddTransactionOpen, setIsAddTransactionOpen }: HeaderProps) {
   const router = useRouter()
   const { logout } = useAuth()
   const pathname = usePathname()

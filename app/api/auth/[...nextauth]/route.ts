@@ -1,57 +1,42 @@
-import NextAuth from 'next-auth';
-import { FirestoreAdapter } from "@next-auth/firebase-adapter";
+import NextAuth, { NextAuthOptions, User as NextAuthUser } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import GoogleProvider from "next-auth/providers/google";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { clientAuth } from "@/app/firebase/config";
-import { adminDb, adminAuth } from "@/app/firebase/admin";
+import { adminDb } from "@/app/firebase/admin";
 
-export const authOptions = {
+// Define a custom User type that extends NextAuthUser
+interface User extends NextAuthUser {
+  id: string;
+}
+
+const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
-        email: { label: "Email", type: "email" },
+        email: { label: "Email", type: "text" },
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        if (!credentials?.email || !credentials?.password || !clientAuth) return null;
         try {
           const userCredential = await signInWithEmailAndPassword(clientAuth, credentials.email, credentials.password);
-          if (userCredential.user) {
-            return {
-              id: userCredential.user.uid,
-              email: userCredential.user.email,
-              name: userCredential.user.displayName,
-            };
-          }
-          return null;
+          const user = userCredential.user;
+          const userDoc = await adminDb.collection('users').doc(user.uid).get();
+          const userData = userDoc.data();
+          return {
+            id: user.uid,
+            email: user.email,
+            name: userData?.name || user.displayName,
+          };
         } catch (error) {
-          console.error("Error during authentication:", error);
+          console.error('Error during authentication:', error);
           return null;
         }
       }
     }),
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
   ],
-  adapter: FirestoreAdapter(adminDb),
-  session: {
-    strategy: "jwt",
-  },
-  pages: {
-    signIn: '/login',
-  },
   callbacks: {
-    async signIn({ user, account, profile, email, credentials }) {
-      if (account?.provider === 'google') {
-        const { uid } = await adminAuth.getUserByEmail(user.email!);
-        user.id = uid;
-      }
-      return true;
-    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
@@ -59,11 +44,14 @@ export const authOptions = {
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id;
+      if (session?.user) {
+        (session.user as User).id = token.id as string;
       }
       return session;
     },
+  },
+  pages: {
+    signIn: '/login',
   },
 };
 
