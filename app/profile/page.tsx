@@ -29,14 +29,14 @@ import { auth } from '@/app/firebase'
 import { deleteUser, sendPasswordResetEmail } from 'firebase/auth'
 
 export default function ProfilePage() {
-  const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false)
   const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false)
   const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false)
   const [isResetDataOpen, setIsResetDataOpen] = useState(false)
+  const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false)
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null)
-  const router = useRouter()
   const { user } = useAuth()
   const { deleteAllTransactions } = useTransactions()
+  const router = useRouter()
 
   const handleResetPassword = async () => {
     if (!user?.email) return
@@ -66,10 +66,10 @@ export default function ProfilePage() {
   const handleResetData = async () => {
     try {
       await deleteAllTransactions()
-      setNotification({ type: 'success', message: 'All transactions have been deleted.' })
+      setNotification({ type: 'success', message: 'Your account data has been reset.' })
     } catch (error) {
-      console.error('Error resetting data:', error)
-      setNotification({ type: 'error', message: 'Failed to reset data. Please try again.' })
+      console.error('Error resetting account data:', error)
+      setNotification({ type: 'error', message: 'Failed to reset account data. Please try again.' })
     }
     setIsResetDataOpen(false)
   }
@@ -81,18 +81,19 @@ export default function ProfilePage() {
         setIsAddTransactionOpen={setIsAddTransactionOpen}
       />
       <main className="flex-1 p-4 md:p-6">
+        <h1 className="text-2xl font-bold mb-4">User Profile</h1>
         <Card>
           <CardHeader>
-            <CardTitle>User Profile</CardTitle>
+            <CardTitle>Personal Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center space-x-4">
               <Avatar className="h-20 w-20">
-                <AvatarFallback>{user?.displayName?.split(' ').map(n => n[0]).join('') || user?.email?.charAt(0).toUpperCase()}</AvatarFallback>
+                <AvatarFallback>{user?.displayName?.[0] || user?.email?.[0] || 'U'}</AvatarFallback>
               </Avatar>
               <div>
-                <h2 className="text-2xl font-bold">{user?.displayName || 'User'}</h2>
-                <p className="text-sm text-gray-500">Member since {user?.metadata.creationTime ? new Date(user.metadata.creationTime).toLocaleDateString() : 'N/A'}</p>
+                <h2 className="text-xl font-semibold">{user?.displayName || 'User'}</h2>
+                <p className="text-sm text-gray-500">Member since {user?.metadata.creationTime ? new Date(user.metadata.creationTime).toLocaleDateString() : 'Unknown'}</p>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

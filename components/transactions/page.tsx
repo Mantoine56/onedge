@@ -92,13 +92,17 @@ const handleAddTransaction = (event: React.FormEvent) => {
 }
 
 const filteredTransactions = transactions.filter(transaction => {
-  if (!dateRange || !dateRange.from || !dateRange.to) return true
-  return transaction.date >= dateRange.from && transaction.date <= dateRange.to
+  if (!dateRange || !dateRange.from || !dateRange.to) return true;
+  return transaction.date >= dateRange.from && transaction.date <= dateRange.to;
 })
 
 const sortedTransactions = [...filteredTransactions].sort((a, b) => {
   return sortOrder === 'asc' ? a.amount - b.amount : b.amount - a.amount
 })
+
+const handleDateRangeSelect = (range: DateRange | undefined) => {
+  setDateRange(range);
+};
 
 return (
   <div className="flex flex-col min-h-screen bg-dot-pattern">
@@ -223,7 +227,7 @@ return (
               mode="range"
               defaultMonth={dateRange?.from}
               selected={dateRange}
-              onSelect={(newDateRange: DateRange | undefined) => setDateRange(newDateRange)}
+              onSelect={handleDateRangeSelect}
               numberOfMonths={2}
             />
           </PopoverContent>

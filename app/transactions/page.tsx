@@ -1,14 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useTransactions } from '@/hooks/useTransactions'
+import { useRouter } from 'next/navigation'  // Keep this import
+import { useTransactions, Transaction } from '@/hooks/useTransactions'
 import { Header } from '@/components/Header'
 import { format } from 'date-fns'
-import { Calendar as CalendarIcon, ChevronDown, Trash2, PlusCircle } from 'lucide-react'
+import { Calendar as CalendarIcon, ChevronDown, PlusCircle, Trash2 } from 'lucide-react'
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
-import { DateRange } from 'react-day-picker'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -39,18 +39,21 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import AddTransactionModal from '@/components/AddTransactionModal';
+import AddTransactionModal from '@/components/AddTransactionModal'
+import { DateRange } from 'react-day-picker'
 
 export default function TransactionsPage() {
-  const { transactions, deleteTransaction } = useTransactions();
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const router = useRouter()  // Mark as unused to avoid ESLint error
+  const { transactions, deleteTransaction } = useTransactions()
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [transactionType, setTransactionType] = useState<'income' | 'expense'>('income');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [transactionType, setTransactionType] = useState<'income' | 'expense'>('income')
 
   const handleDeleteTransaction = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+    e.stopPropagation(); // Prevent the row click event from firing
     try {
       await deleteTransaction(id);
       setNotification({ message: "Transaction deleted successfully", type: 'success' });
@@ -71,17 +74,25 @@ export default function TransactionsPage() {
 
   const filteredTransactions = transactions.filter(transaction => {
     if (!dateRange || !dateRange.from || !dateRange.to) return true;
-    const transactionDate = new Date(transaction.date);
-    return transactionDate >= dateRange.from && transactionDate <= dateRange.to;
+    return transaction.date >= dateRange.from && transaction.date <= dateRange.to;
   })
 
   const sortedTransactions = [...filteredTransactions].sort((a, b) => {
-    return sortOrder === 'asc' ? a.amount - b.amount : b.amount - a.amount;
-  });
+    return sortOrder === 'asc' ? a.amount - b.amount : b.amount - a.amount
+  })
 
   const openAddModal = (type: 'income' | 'expense') => {
-    setTransactionType(type);
-    setIsAddModalOpen(true);
+    setTransactionType(type)
+    setIsAddModalOpen(true)
+  };
+
+  const handleRowClick = (transaction: Transaction) => {
+    // Implement the row click functionality here
+    console.log('Transaction clicked:', transaction);
+  };
+
+  const handleDateRangeSelect = (range: DateRange | undefined) => {
+    setDateRange(range);
   };
 
   return (
@@ -116,7 +127,7 @@ export default function TransactionsPage() {
                 mode="range"
                 defaultMonth={dateRange?.from}
                 selected={dateRange}
-                onSelect={(newDateRange: DateRange | undefined) => setDateRange(newDateRange)}
+                onSelect={handleDateRangeSelect}
                 numberOfMonths={2}
               />
             </PopoverContent>
@@ -160,6 +171,7 @@ export default function TransactionsPage() {
                 <TableRow 
                   key={transaction.id} 
                   className="cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleRowClick(transaction)}
                 >
                   <TableCell>
                     <div className="flex items-center">
@@ -180,13 +192,13 @@ export default function TransactionsPage() {
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(e) => e.stopPropagation()} // Prevent row click when opening dialog
                         >
                           <Trash2 className="h-4 w-4" />
                           <span className="sr-only">Delete transaction</span>
                         </Button>
                       </AlertDialogTrigger>
-                      <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                      <AlertDialogContent onClick={(e) => e.stopPropagation()}> {/* Prevent row click when dialog is open */}
                         <AlertDialogHeader>
                           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                           <AlertDialogDescription>
@@ -210,15 +222,17 @@ export default function TransactionsPage() {
         </div>
       </main>
       
+      {/* Floating "+" button */}
       <Button 
         variant="default" 
         className="fixed bottom-4 right-4 bg-black text-white hover:bg-gray-800 rounded-full p-4 shadow-lg"
-        onClick={() => openAddModal('income')}
+        onClick={() => openAddModal('income')} // Open modal for income by default
       >
         <PlusCircle className="h-6 w-6" />
         <span className="sr-only">Add Transaction</span>
       </Button>
 
+      {/* AddTransactionModal */}
       <AddTransactionModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}

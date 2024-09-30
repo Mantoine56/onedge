@@ -88,7 +88,7 @@ export function Header({ isAddTransactionOpen, setIsAddTransactionOpen }: Header
               <PlusCircle className="mr-2 h-4 w-4" /> Add Transaction
             </Button>
           </DialogTrigger>
-          {/* ... (DialogContent remains the same) ... */}
+          {/* If handleAddTransaction is provided, you can use it here */}
         </Dialog>
       </nav>
       <div className="flex items-center">

@@ -19,9 +19,5 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     return <div>Loading...</div>;
   }
 
-  if (!user) {
-    return null;
-  }
-
-  return <>{children}</>;
+  return user ? <>{children}</> : null;
 }
