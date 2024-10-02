@@ -71,3 +71,12 @@ Thumbs.db
 *.bak
 *.swp
 *.swo
+
+# Next.js build output
+.next
+
+# Node modules
+node_modules
+
+# Cache
+.cache
