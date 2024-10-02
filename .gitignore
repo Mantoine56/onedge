@@ -1,33 +1,73 @@
-   # Dependencies
-   /node_modules
-   /.pnp
-   .pnp.js
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-   # Testing
-   /coverage
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
 
-   # Next.js
-   /.next/
-   /out/
+# Testing
+/coverage
 
-   # Production
-   /build
+# Next.js
+/.next/
+/out/
 
-   # Misc
-   .DS_Store
-   *.pem
+# Production
+/build
 
-   # Debug
-   npm-debug.log*
-   yarn-debug.log*
-   yarn-error.log*
+# Misc
+.DS_Store
+*.pem
 
-   # Local env files
-   .env*.local
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-   # Vercel
-   .vercel
+# Local env files
+.env*.local
 
-   # TypeScript
-   *.tsbuildinfo
-   next-env.d.ts
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Firebase
+.firebase/
+firebase-debug.log
+
+# IDE/Editor specific
+.vscode/
+.idea/
+
+# Cache
+.cache/
+.npm/
+
+# Build output
+dist/
+
+# Logs
+logs
+*.log
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Misc
+*.bak
+*.swp
+*.swo
