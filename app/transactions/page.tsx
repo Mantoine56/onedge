@@ -41,6 +41,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import AddTransactionModal from '@/components/AddTransactionModal'
 import { DateRange } from 'react-day-picker'
+import { useAuth } from '@/app/hooks/useAuth';
+import { User } from '@/app/hooks/useAuth';
 
 export default function TransactionsPage() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -51,6 +53,7 @@ export default function TransactionsPage() {
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [transactionType, setTransactionType] = useState<'income' | 'expense'>('income')
+  const { user } = useAuth();
 
   const handleDeleteTransaction = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent the row click event from firing
@@ -187,33 +190,35 @@ export default function TransactionsPage() {
                   <TableCell className="text-right">${transaction.amount.toFixed(2)}</TableCell>
                   <TableCell>{transaction.notes}</TableCell>
                   <TableCell className="text-right">
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={(e) => e.stopPropagation()} // Prevent row click when opening dialog
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Delete transaction</span>
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent onClick={(e) => e.stopPropagation()}> {/* Prevent row click when dialog is open */}
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the transaction
-                            from our servers.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={(e) => handleDeleteTransaction(transaction.id, e)}>
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    {user?.role === 'admin' && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={(e) => e.stopPropagation()} // Prevent row click when opening dialog
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Delete transaction</span>
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent onClick={(e) => e.stopPropagation()}> {/* Prevent row click when dialog is open */}
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will permanently delete the transaction
+                              from our servers.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={(e) => handleDeleteTransaction(transaction.id, e)}>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
-import { db, auth } from '@/app/firebase';
+import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, Timestamp, getDoc } from 'firebase/firestore';
+import { db } from '@/app/firebase';
 import { useAuth } from '@/app/hooks/useAuth';
-import { getDocs, writeBatch } from 'firebase/firestore';
 
 export interface Transaction {
   id: string;
@@ -10,6 +9,7 @@ export interface Transaction {
   customerName: string;
   notes: string;
   date: Date;
+  createdBy: string;
 }
 
 export interface Metrics {
@@ -40,24 +40,42 @@ export function useTransactions() {
   useEffect(() => {
     if (!user) return;
 
-    const q = query(collection(db, 'transactions'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const transactionsData: Transaction[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        transactionsData.push({
-          id: doc.id,
-          amount: data.amount,
-          customerName: data.customerName,
-          notes: data.notes,
-          date: data.date.toDate(),
-        });
-      });
-      setTransactions(transactionsData);
-      calculateMetrics(transactionsData);
-    });
+    let unsubscribe: (() => void) | undefined;
 
-    return () => unsubscribe();
+    const fetchTransactions = async () => {
+      let q;
+      if (user.role === 'admin') {
+        q = query(collection(db, 'transactions'), where('adminId', '==', user.uid));
+      } else {
+        // For employees, fetch transactions associated with their admin
+        q = query(collection(db, 'transactions'), where('adminId', '==', user.adminId));
+      }
+
+      unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const transactionsData: Transaction[] = [];
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          transactionsData.push({
+            id: doc.id,
+            amount: data.amount,
+            customerName: data.customerName,
+            notes: data.notes,
+            date: data.date.toDate(),
+            createdBy: data.createdBy,
+          });
+        });
+        setTransactions(transactionsData);
+        calculateMetrics(transactionsData);
+      });
+    };
+
+    fetchTransactions();
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, [user]);
 
   const calculateMetrics = (transactions: Transaction[]) => {
@@ -97,18 +115,22 @@ export function useTransactions() {
     });
   };
 
-  const addTransaction = async (transaction: Omit<Transaction, 'id' | 'date'>) => {
+  const addTransaction = async (transaction: Omit<Transaction, 'id' | 'date' | 'createdBy'>) => {
     if (!user) throw new Error('User not authenticated');
 
-    await addDoc(collection(db, 'transactions'), {
+    const newTransaction = {
       ...transaction,
-      userId: user.uid,
+      createdBy: user.uid,
       date: Timestamp.now(),
-    });
+      adminId: user.role === 'admin' ? user.uid : user.adminId,
+    };
+
+    await addDoc(collection(db, 'transactions'), newTransaction);
   };
 
   const deleteTransaction = async (id: string) => {
     if (!user) throw new Error('User not authenticated');
+    if (user.role !== 'admin') throw new Error('Unauthorized');
 
     await deleteDoc(doc(db, 'transactions', id));
   };

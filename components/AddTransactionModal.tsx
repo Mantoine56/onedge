@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useTransactions } from '@/hooks/useTransactions'
+import { useAuth } from '@/app/hooks/useAuth'
 
 interface AddTransactionModalProps {
   isOpen: boolean
@@ -16,9 +17,12 @@ export default function AddTransactionModal({ isOpen, onClose, transactionType }
   const [customerName, setCustomerName] = useState('')
   const [notes, setNotes] = useState('')
   const { addTransaction } = useTransactions()
+  const { user } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!user) return;
+
     try {
       await addTransaction({
         amount: parseFloat(amount) * (transactionType === 'expense' ? -1 : 1),
@@ -32,6 +36,7 @@ export default function AddTransactionModal({ isOpen, onClose, transactionType }
       setNotes('')
     } catch (error) {
       console.error('Error adding transaction:', error)
+      // You might want to show an error message to the user here
     }
   }
 

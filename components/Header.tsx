@@ -34,13 +34,18 @@ interface HeaderProps {
 }
 
 export function Header({ isAddTransactionOpen, setIsAddTransactionOpen }: HeaderProps) {
+  const { user, logout } = useAuth()
   const router = useRouter()
-  const { logout } = useAuth()
   const pathname = usePathname()
 
   const handleLogout = async () => {
-    await logout()
-    router.push('/login')
+    try {
+      await logout()
+      router.push('/login')
+    } catch (error) {
+      console.error('Error logging out:', error);
+      // Handle logout error (e.g., show an error message to the user)
+    }
   }
 
   return (

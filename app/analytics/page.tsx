@@ -64,6 +64,7 @@ interface ChartData {
     daily: Array<{ date: string; mrr: number }>;
     monthly: Array<{ month: string; mrr: number }>;
   };
+  userTransactionData: Array<{ userId: string; total: number }>;
 }
 
 export default function AnalyticsPage() {
@@ -188,12 +189,27 @@ export default function AnalyticsPage() {
         }))
       };
 
+      const userTransactionData: { [key: string]: number } = {};
+
+      transactions.forEach(transaction => {
+        if (!userTransactionData[transaction.createdBy]) {
+          userTransactionData[transaction.createdBy] = 0;
+        }
+        userTransactionData[transaction.createdBy] += transaction.amount;
+      });
+
+      const userTransactionChartData = Object.entries(userTransactionData).map(([userId, total]) => ({
+        userId,
+        total,
+      }));
+
       console.log('Calculated chart data:', {
         revenueData,
         transactionVolumeData,
         avgTransactionData,
         transactionDistributionData,
-        mrrGrowthData
+        mrrGrowthData,
+        userTransactionData: userTransactionChartData
       })
 
       return {
@@ -201,7 +217,8 @@ export default function AnalyticsPage() {
         transactionVolumeData,
         avgTransactionData,
         transactionDistributionData,
-        mrrGrowthData
+        mrrGrowthData,
+        userTransactionData: userTransactionChartData
       } as ChartData;
     } catch (error) {
       console.error('Error calculating chart data:', error)
@@ -428,6 +445,25 @@ export default function AnalyticsPage() {
                     <Legend />
                     <Area type="monotone" dataKey="mrr" stroke="#8884d8" fill="#8884d8" />
                   </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* User Transactions Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>User Transactions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={chartData.userTransactionData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="userId" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="total" fill="#8884d8" />
+                  </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>

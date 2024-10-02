@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/app/hooks/useAuth'
 import { useTransactions } from '@/hooks/useTransactions'
@@ -23,20 +23,28 @@ import {
   Phone,
   Key,
   Trash,
-  RefreshCw
+  RefreshCw,
+  UserPlus,
+  Users
 } from 'lucide-react'
-import { auth } from '@/app/firebase'
+import { auth, db } from '@/app/firebase'
 import { deleteUser, sendPasswordResetEmail } from 'firebase/auth'
+import { addDoc, collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore'
 
 export default function ProfilePage() {
   const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false)
   const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false)
   const [isResetDataOpen, setIsResetDataOpen] = useState(false)
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false)
+  const [isInviteUserOpen, setIsInviteUserOpen] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null)
   const { user } = useAuth()
   const { deleteAllTransactions } = useTransactions()
   const router = useRouter()
+  const [employees, setEmployees] = useState<any[]>([])
+  const [isDeleteEmployeeOpen, setIsDeleteEmployeeOpen] = useState(false)
+  const [employeeToDelete, setEmployeeToDelete] = useState<any>(null)
 
   const handleResetPassword = async () => {
     if (!user?.email) return
@@ -74,6 +82,62 @@ export default function ProfilePage() {
     setIsResetDataOpen(false)
   }
 
+  const handleInviteUser = async () => {
+    if (!user) return;
+    try {
+      const response = await fetch('/api/invite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: inviteEmail,
+          invitedBy: user.uid,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setNotification({ type: 'success', message: 'Invitation sent successfully.' });
+        setInviteEmail('');
+        setIsInviteUserOpen(false);
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (error) {
+      console.error('Error inviting user:', error);
+      setNotification({ type: 'error', message: 'Failed to send invitation. Please try again.' });
+    }
+  }
+
+  useEffect(() => {
+    if (user && user.role === 'admin') {
+      fetchEmployees()
+    }
+  }, [user])
+
+  const fetchEmployees = async () => {
+    if (!user) return
+    const employeesQuery = query(collection(db, 'users'), where('adminId', '==', user.uid))
+    const querySnapshot = await getDocs(employeesQuery)
+    const employeesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    setEmployees(employeesData)
+  }
+
+  const handleDeleteEmployee = async () => {
+    if (!employeeToDelete) return
+    try {
+      await deleteDoc(doc(db, 'users', employeeToDelete.id))
+      setNotification({ type: 'success', message: 'Employee deleted successfully.' })
+      fetchEmployees() // Refresh the employee list
+    } catch (error) {
+      console.error('Error deleting employee:', error)
+      setNotification({ type: 'error', message: 'Failed to delete employee. Please try again.' })
+    }
+    setIsDeleteEmployeeOpen(false)
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-dot-pattern">
       <Header 
@@ -81,22 +145,24 @@ export default function ProfilePage() {
         setIsAddTransactionOpen={setIsAddTransactionOpen}
       />
       <main className="flex-1 p-4 md:p-6">
-        <h1 className="text-2xl font-bold mb-4">User Profile</h1>
-        <Card>
-          <CardHeader>
-            <CardTitle>Personal Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center space-x-4">
-              <Avatar className="h-20 w-20">
-                <AvatarFallback>{user?.displayName?.[0] || user?.email?.[0] || 'U'}</AvatarFallback>
+        <h1 className="text-2xl font-bold mb-4">Profile</h1>
+        {user && (
+          <div className="bg-white shadow rounded-lg p-6">
+            <div className="flex items-center mb-4">
+              <Avatar className="h-16 w-16 mr-4">
+                <AvatarFallback>{user.displayName ? user.displayName[0].toUpperCase() : 'U'}</AvatarFallback>
               </Avatar>
               <div>
-                <h2 className="text-xl font-semibold">{user?.displayName || 'User'}</h2>
-                <p className="text-sm text-gray-500">Member since {user?.metadata.creationTime ? new Date(user.metadata.creationTime).toLocaleDateString() : 'Unknown'}</p>
+                <h2 className="text-xl font-semibold">{user.displayName || 'User'}</h2>
+                <p className="text-sm text-gray-500">
+                  Member since {user.creationTime ? new Date(user.creationTime).toLocaleDateString() : 'Unknown'}
+                </p>
+                <p className="text-sm font-medium mt-1">
+                  Role: <span className="capitalize">{user.role || 'Unknown'}</span>
+                </p>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <Label htmlFor="email">Email</Label>
                 <div className="flex items-center mt-1">
@@ -116,6 +182,11 @@ export default function ProfilePage() {
               <Button onClick={() => setIsResetPasswordOpen(true)}>
                 <Key className="mr-2 h-4 w-4" /> Reset Password
               </Button>
+              {user.role === 'admin' && (
+                <Button onClick={() => setIsInviteUserOpen(true)}>
+                  <UserPlus className="mr-2 h-4 w-4" /> Invite User
+                </Button>
+              )}
               <Button variant="destructive" onClick={() => setIsDeleteAccountOpen(true)}>
                 <Trash className="mr-2 h-4 w-4" /> Delete Account
               </Button>
@@ -123,8 +194,34 @@ export default function ProfilePage() {
                 <RefreshCw className="mr-2 h-4 w-4" /> Reset Account Data
               </Button>
             </div>
-          </CardContent>
-        </Card>
+            {user.role === 'admin' && (
+              <div className="mt-6">
+                <h2 className="text-xl font-semibold mb-4">Employees</h2>
+                {employees.length > 0 ? (
+                  <ul className="space-y-2">
+                    {employees.map((employee) => (
+                      <li key={employee.id} className="flex items-center justify-between bg-gray-100 p-2 rounded">
+                        <span>{employee.name} ({employee.email})</span>
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          onClick={() => {
+                            setEmployeeToDelete(employee)
+                            setIsDeleteEmployeeOpen(true)
+                          }}
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>No employees yet.</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </main>
 
       {/* Reset Password Dialog */}
@@ -171,6 +268,47 @@ export default function ProfilePage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsResetDataOpen(false)}>Cancel</Button>
             <Button variant="destructive" onClick={handleResetData}>Reset Data</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Invite User Dialog */}
+      <Dialog open={isInviteUserOpen} onOpenChange={setIsInviteUserOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Invite User</DialogTitle>
+            <DialogDescription>
+              Invite a new user to join as an employee. They will have limited functionality.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="inviteEmail">Email</Label>
+            <Input
+              id="inviteEmail"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="Enter email address"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsInviteUserOpen(false)}>Cancel</Button>
+            <Button onClick={handleInviteUser}>Send Invitation</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Employee Dialog */}
+      <Dialog open={isDeleteEmployeeOpen} onOpenChange={setIsDeleteEmployeeOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Employee</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this employee? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteEmployeeOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDeleteEmployee}>Delete Employee</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
