@@ -80,3 +80,14 @@ node_modules
 
 # Cache
 .cache
+
+# Add these specific exclusions to your existing .gitignore file
+
+# Large files
+.next/cache/webpack/client-production/0.pack
+.next/cache/webpack/server-production/3.pack
+node_modules/@next/swc-darwin-arm64/next-swc.darwin-arm64.node
+
+# Entire directories
+.next/
+node_modules/
