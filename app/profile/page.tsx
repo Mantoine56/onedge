@@ -25,11 +25,13 @@ import {
   Trash,
   RefreshCw,
   UserPlus,
-  Users
+  Users,
+  PlusCircle
 } from 'lucide-react'
 import { auth, db } from '@/app/firebase'
 import { deleteUser, sendPasswordResetEmail } from 'firebase/auth'
 import { addDoc, collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore'
+import AddTransactionModal from '@/components/AddTransactionModal'
 
 export default function ProfilePage() {
   const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false)
@@ -45,6 +47,7 @@ export default function ProfilePage() {
   const [employees, setEmployees] = useState<any[]>([])
   const [isDeleteEmployeeOpen, setIsDeleteEmployeeOpen] = useState(false)
   const [employeeToDelete, setEmployeeToDelete] = useState<any>(null)
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
 
   const handleResetPassword = async () => {
     if (!user?.email) return
@@ -141,8 +144,8 @@ export default function ProfilePage() {
   return (
     <div className="flex flex-col min-h-screen bg-dot-pattern">
       <Header 
-        isAddTransactionOpen={isAddTransactionOpen}
-        setIsAddTransactionOpen={setIsAddTransactionOpen}
+        isAddTransactionOpen={isAddModalOpen}
+        setIsAddTransactionOpen={setIsAddModalOpen}
       />
       <main className="flex-1 p-4 md:p-6">
         <h1 className="text-2xl font-bold mb-4">Profile</h1>
@@ -320,6 +323,21 @@ export default function ProfilePage() {
           {notification.message}
         </div>
       )}
+
+      <Button 
+        variant="default" 
+        className="fixed bottom-4 right-4 bg-black text-white hover:bg-gray-800 rounded-full p-4 shadow-lg"
+        onClick={() => setIsAddModalOpen(true)}
+      >
+        <PlusCircle className="h-6 w-6" />
+        <span className="sr-only">Add Transaction</span>
+      </Button>
+
+      <AddTransactionModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        transactionType="income"
+      />
     </div>
   )
 }

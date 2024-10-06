@@ -42,6 +42,7 @@ import {
 import AddTransactionModal from '@/components/AddTransactionModal'
 import { DateRange } from 'react-day-picker'
 import { useAuth } from '@/app/hooks/useAuth'
+import { toEasternTime, fromEasternTime, formatInTimeZone } from '@/utils/dateUtils'
 
 export default function TransactionsPage() {
   const router = useRouter()
@@ -74,7 +75,8 @@ export default function TransactionsPage() {
 
   const filteredTransactions = transactions.filter(transaction => {
     if (!dateRange || !dateRange.from || !dateRange.to) return true;
-    return transaction.date >= dateRange.from && transaction.date <= dateRange.to;
+    const transactionDate = toEasternTime(new Date(transaction.date));
+    return transactionDate >= dateRange.from && transactionDate <= dateRange.to;
   })
 
   const sortedTransactions = [...filteredTransactions].sort((a, b) => {
@@ -107,10 +109,10 @@ export default function TransactionsPage() {
                 {dateRange?.from ? (
                   dateRange.to ? (
                     <>
-                      {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
+                      {formatInTimeZone(new Date(dateRange.from), "LLL dd, y")} - {formatInTimeZone(new Date(dateRange.to), "LLL dd, y")}
                     </>
                   ) : (
-                    format(dateRange.from, "LLL dd, y")
+                    formatInTimeZone(new Date(dateRange.from), "LLL dd, y")
                   )
                 ) : (
                   <span>Pick a date range</span>
@@ -181,7 +183,7 @@ export default function TransactionsPage() {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>{format(transaction.date, 'MMM d, yyyy')}</TableCell>
+                  <TableCell>{formatInTimeZone(new Date(transaction.date), 'MMM d, yyyy')}</TableCell>
                   <TableCell className="text-right">${transaction.amount.toFixed(2)}</TableCell>
                   <TableCell>{transaction.notes}</TableCell>
                   <TableCell className="text-right">

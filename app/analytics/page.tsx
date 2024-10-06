@@ -20,12 +20,16 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { DateRange } from 'react-day-picker'
-import { format, startOfDay, startOfMonth, startOfYear, eachDayOfInterval } from 'date-fns'
+import format from 'date-fns/format'
+import startOfDay from 'date-fns/startOfDay'
+import startOfMonth from 'date-fns/startOfMonth'
+import startOfYear from 'date-fns/startOfYear'
 import { Calendar as CalendarIcon, ChevronUp, ChevronDown, PlusCircle } from 'lucide-react'
 import { db } from '@/app/firebase/config'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, ResponsiveContainer } from 'recharts'
 import AddTransactionModal from '@/components/AddTransactionModal'
+import { toEasternTime, fromEasternTime, formatInTimeZone } from '@/utils/dateUtils'
 
 interface UserTotals {
   userId: string;
@@ -77,7 +81,7 @@ export default function AnalyticsPage() {
   }, [user, transactions])
 
   const calculateTotals = (users: any[]): UserTotals[] => {
-    const today = new Date()
+    const today = toEasternTime(new Date())
     const startOfToday = startOfDay(today)
     const startOfThisMonth = startOfMonth(today)
     const startOfThisYear = startOfYear(today)
@@ -88,13 +92,13 @@ export default function AnalyticsPage() {
         userId: user.id,
         email: user.email,
         dailyTotal: userTransactions
-          .filter(t => new Date(t.date) >= startOfToday)
+          .filter(t => toEasternTime(new Date(t.date)) >= startOfToday)
           .reduce((sum, t) => sum + Math.abs(t.amount), 0),
         monthlyTotal: userTransactions
-          .filter(t => new Date(t.date) >= startOfThisMonth)
+          .filter(t => toEasternTime(new Date(t.date)) >= startOfThisMonth)
           .reduce((sum, t) => sum + Math.abs(t.amount), 0),
         yearlyTotal: userTransactions
-          .filter(t => new Date(t.date) >= startOfThisYear)
+          .filter(t => toEasternTime(new Date(t.date)) >= startOfThisYear)
           .reduce((sum, t) => sum + Math.abs(t.amount), 0),
       }
     })
@@ -103,7 +107,7 @@ export default function AnalyticsPage() {
   const calculateIncomeByDay = (transactions: any[]) => {
     const incomeByDay: { [key: string]: number } = {}
     transactions.forEach(t => {
-      const date = format(new Date(t.date), 'yyyy-MM-dd')
+      const date = formatInTimeZone(new Date(t.date), 'yyyy-MM-dd')
       incomeByDay[date] = (incomeByDay[date] || 0) + t.amount
     })
     return Object.entries(incomeByDay).map(([date, income]) => ({ date, income }))
@@ -112,7 +116,7 @@ export default function AnalyticsPage() {
   const calculateTransactionCountByDay = (transactions: any[]) => {
     const countByDay: { [key: string]: number } = {}
     transactions.forEach(t => {
-      const date = format(new Date(t.date), 'yyyy-MM-dd')
+      const date = formatInTimeZone(new Date(t.date), 'yyyy-MM-dd')
       countByDay[date] = (countByDay[date] || 0) + 1
     })
     return Object.entries(countByDay).map(([date, count]) => ({ date, count }))

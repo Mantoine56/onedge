@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useTransactions } from '@/hooks/useTransactions'
 import { useAuth } from '@/app/hooks/useAuth'
+import { fromEasternTime } from '@/utils/dateUtils'
 
 interface AddTransactionModalProps {
   isOpen: boolean
@@ -28,6 +29,7 @@ export default function AddTransactionModal({ isOpen, onClose, transactionType }
         amount: parseFloat(amount) * (transactionType === 'expense' ? -1 : 1),
         customerName,
         notes,
+        date: fromEasternTime(new Date()), // Convert to UTC before saving
       })
       onClose()
       // Reset form
