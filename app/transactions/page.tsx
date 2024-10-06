@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+// import { useRouter } from 'next/navigation'
 import { useTransactions, Transaction } from '@/hooks/useTransactions'
 import { Header } from '@/components/Header'
-import { format } from 'date-fns'
+// import { format } from 'date-fns'
 import { Calendar as CalendarIcon, ChevronDown, PlusCircle, Trash2 } from 'lucide-react'
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -42,10 +42,10 @@ import {
 import AddTransactionModal from '@/components/AddTransactionModal'
 import { DateRange } from 'react-day-picker'
 import { useAuth } from '@/app/hooks/useAuth'
-import { toEasternTime, fromEasternTime, formatInTimeZone } from '@/utils/dateUtils'
+import { toEasternTime, formatInTimeZone } from '@/utils/dateUtils'
 
 export default function TransactionsPage() {
-  const router = useRouter()
+  // const router = useRouter()
   const { transactions, deleteTransaction } = useTransactions()
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')

@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, Timestamp, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, Timestamp, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from '@/app/firebase';
 import { useAuth } from '@/app/hooks/useAuth';
 
 export interface Transaction {
   id: string;
   amount: number;
-  customerName: string;
-  notes: string;
   date: Date;
-  createdBy: string;
+  customerName: string;
+  notes?: string;
+  userId: string;
+  createdBy: string; // Add this line
+  adminId: string; // Add this line
 }
 
 export interface Metrics {
@@ -47,7 +49,6 @@ export function useTransactions() {
       if (user.role === 'admin') {
         q = query(collection(db, 'transactions'), where('adminId', '==', user.uid));
       } else {
-        // For employees, fetch transactions associated with their admin
         q = query(collection(db, 'transactions'), where('adminId', '==', user.adminId));
       }
 
@@ -62,6 +63,8 @@ export function useTransactions() {
             notes: data.notes,
             date: data.date.toDate(),
             createdBy: data.createdBy,
+            userId: data.userId,
+            adminId: data.adminId,
           });
         });
         setTransactions(transactionsData);
@@ -115,12 +118,13 @@ export function useTransactions() {
     });
   };
 
-  const addTransaction = async (transaction: Omit<Transaction, 'id' | 'date' | 'createdBy'>) => {
+  const addTransaction = async (transaction: Omit<Transaction, 'id' | 'date' | 'createdBy' | 'userId' | 'adminId'>) => {
     if (!user) throw new Error('User not authenticated');
 
     const newTransaction = {
       ...transaction,
       createdBy: user.uid,
+      userId: user.uid,
       date: Timestamp.now(),
       adminId: user.role === 'admin' ? user.uid : user.adminId,
     };

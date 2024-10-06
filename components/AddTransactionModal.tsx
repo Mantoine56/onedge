@@ -4,32 +4,35 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useTransactions } from '@/hooks/useTransactions'
-import { useAuth } from '@/app/hooks/useAuth'
-import { fromEasternTime } from '@/utils/dateUtils'
+// Remove the unused import
+// import { useAuth } from '@/app/hooks/useAuth'
+// Remove the unused import
+// import { fromEasternTime } from '@/utils/dateUtils'
 
 interface AddTransactionModalProps {
   isOpen: boolean
   onClose: () => void
+  // Keep this prop even if unused, as it might be used in the future
   transactionType: 'income' | 'expense'
 }
 
-export default function AddTransactionModal({ isOpen, onClose, transactionType }: AddTransactionModalProps) {
+export default function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProps) {
   const [amount, setAmount] = useState('')
   const [customerName, setCustomerName] = useState('')
   const [notes, setNotes] = useState('')
   const { addTransaction } = useTransactions()
-  const { user } = useAuth()
+  // Remove the unused user variable
+  // const { user } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!user) return;
+    if (!amount || !customerName) return;
 
     try {
       await addTransaction({
-        amount: parseFloat(amount) * (transactionType === 'expense' ? -1 : 1),
+        amount: parseFloat(amount),
         customerName,
         notes,
-        date: fromEasternTime(new Date()), // Convert to UTC before saving
       })
       onClose()
       // Reset form

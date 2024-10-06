@@ -21,7 +21,6 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { 
-  DollarSign, 
   PlusCircle,
   UserCircle,
   Menu,
@@ -48,6 +47,9 @@ export function Header({ isAddTransactionOpen, setIsAddTransactionOpen }: Header
       // Handle logout error (e.g., show an error message to the user)
     }
   }
+
+  // Use the user object
+  console.log('Current user:', user);
 
   return (
     <header className="flex items-center h-16 px-4 border-b shrink-0 md:px-6 bg-white">

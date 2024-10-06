@@ -1,24 +1,31 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, getDoc, updateDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/app/firebase';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export default function SignUpPage() {
+// Define the Invitation interface if not already defined
+interface Invitation {
+  id: string;
+  invitedBy: string;
+  // Add other properties as needed
+}
+
+function SignUpContent() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const [invitation, setInvitation] = useState<any>(null);
+  const [invitation, setInvitation] = useState<Invitation | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get('token');
+  const token = searchParams ? searchParams.get('token') : null;
 
   useEffect(() => {
     const verifyToken = async () => {
@@ -39,7 +46,7 @@ export default function SignUpPage() {
         }
 
         const invitationDoc = querySnapshot.docs[0];
-        setInvitation({ ...invitationDoc.data(), id: invitationDoc.id });
+        setInvitation({ ...invitationDoc.data(), id: invitationDoc.id } as Invitation);
         setEmail(invitationDoc.data().email);
         setLoading(false);
       } catch (error) {
@@ -131,5 +138,13 @@ export default function SignUpPage() {
         {error && <p className="text-red-500 text-center">{error}</p>}
       </div>
     </div>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SignUpContent />
+    </Suspense>
   );
 }

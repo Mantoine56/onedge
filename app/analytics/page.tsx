@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Header } from '@/components/Header'
-import { useTransactions } from '@/hooks/useTransactions'
-import { useAuth } from '@/app/hooks/useAuth'
+import { useTransactions, Transaction } from '@/hooks/useTransactions'
+import { useAuth, User as AuthUser } from '@/app/hooks/useAuth'
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import {
@@ -20,16 +20,17 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { DateRange } from 'react-day-picker'
-import format from 'date-fns/format'
-import startOfDay from 'date-fns/startOfDay'
-import startOfMonth from 'date-fns/startOfMonth'
-import startOfYear from 'date-fns/startOfYear'
+import { format, startOfDay, startOfMonth, startOfYear } from 'date-fns'
 import { Calendar as CalendarIcon, ChevronUp, ChevronDown, PlusCircle } from 'lucide-react'
 import { db } from '@/app/firebase/config'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, ResponsiveContainer } from 'recharts'
 import AddTransactionModal from '@/components/AddTransactionModal'
-import { toEasternTime, fromEasternTime, formatInTimeZone } from '@/utils/dateUtils'
+import { toEasternTime, formatInTimeZone } from '@/utils/dateUtils'
+
+interface User extends AuthUser {
+  id: string;
+}
 
 interface UserTotals {
   userId: string;
@@ -54,15 +55,40 @@ export default function AnalyticsPage() {
   const [transactionCountData, setTransactionCountData] = useState<{ date: string; count: number }[]>([])
   const [userRankingData, setUserRankingData] = useState<{ email: string; total: number }[]>([])
 
+  const calculateTotals = useCallback((users: User[]): UserTotals[] => {
+    const today = toEasternTime(new Date())
+    const startOfToday = startOfDay(today)
+    const startOfThisMonth = startOfMonth(today)
+    const startOfThisYear = startOfYear(today)
+
+    return users.map(user => {
+      const userTransactions = transactions.filter(t => t.userId === user.id)
+      return {
+        userId: user.id,
+        email: user.email || '',
+        dailyTotal: userTransactions
+          .filter(t => toEasternTime(new Date(t.date)) >= startOfToday)
+          .reduce((sum, t) => sum + Math.abs(t.amount), 0),
+        monthlyTotal: userTransactions
+          .filter(t => toEasternTime(new Date(t.date)) >= startOfThisMonth)
+          .reduce((sum, t) => sum + Math.abs(t.amount), 0),
+        yearlyTotal: userTransactions
+          .filter(t => toEasternTime(new Date(t.date)) >= startOfThisYear)
+          .reduce((sum, t) => sum + Math.abs(t.amount), 0),
+      }
+    })
+  }, [transactions]);
+
   useEffect(() => {
     const fetchEmployees = async () => {
       if (user && user.role === 'admin') {
         const employeesRef = collection(db, 'users')
         const q = query(employeesRef, where('adminId', '==', user.uid))
         const querySnapshot = await getDocs(q)
-        const employees = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        const employees = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User))
         
-        const totals = calculateTotals([user, ...employees])
+        const currentUser: User = { ...user, id: user.uid }
+        const totals = calculateTotals([currentUser, ...employees])
         setUserTotals(totals)
 
         // Calculate chart data
@@ -78,51 +104,27 @@ export default function AnalyticsPage() {
     }
 
     fetchEmployees()
-  }, [user, transactions])
+  }, [user, transactions, calculateTotals])
 
-  const calculateTotals = (users: any[]): UserTotals[] => {
-    const today = toEasternTime(new Date())
-    const startOfToday = startOfDay(today)
-    const startOfThisMonth = startOfMonth(today)
-    const startOfThisYear = startOfYear(today)
-
-    return users.map(user => {
-      const userTransactions = transactions.filter(t => t.userId === user.id)
-      return {
-        userId: user.id,
-        email: user.email,
-        dailyTotal: userTransactions
-          .filter(t => toEasternTime(new Date(t.date)) >= startOfToday)
-          .reduce((sum, t) => sum + Math.abs(t.amount), 0),
-        monthlyTotal: userTransactions
-          .filter(t => toEasternTime(new Date(t.date)) >= startOfThisMonth)
-          .reduce((sum, t) => sum + Math.abs(t.amount), 0),
-        yearlyTotal: userTransactions
-          .filter(t => toEasternTime(new Date(t.date)) >= startOfThisYear)
-          .reduce((sum, t) => sum + Math.abs(t.amount), 0),
-      }
-    })
-  }
-
-  const calculateIncomeByDay = (transactions: any[]) => {
-    const incomeByDay: { [key: string]: number } = {}
+  const calculateIncomeByDay = (transactions: Transaction[]): { date: string; income: number }[] => {
+    const incomeByDay: { [key: string]: number } = {};
     transactions.forEach(t => {
-      const date = formatInTimeZone(new Date(t.date), 'yyyy-MM-dd')
-      incomeByDay[date] = (incomeByDay[date] || 0) + t.amount
-    })
-    return Object.entries(incomeByDay).map(([date, income]) => ({ date, income }))
-  }
+      const date = formatInTimeZone(new Date(t.date), 'yyyy-MM-dd');
+      incomeByDay[date] = (incomeByDay[date] || 0) + t.amount;
+    });
+    return Object.entries(incomeByDay).map(([date, income]) => ({ date, income }));
+  };
 
-  const calculateTransactionCountByDay = (transactions: any[]) => {
-    const countByDay: { [key: string]: number } = {}
+  const calculateTransactionCountByDay = (transactions: Transaction[]): { date: string; count: number }[] => {
+    const countByDay: { [key: string]: number } = {};
     transactions.forEach(t => {
-      const date = formatInTimeZone(new Date(t.date), 'yyyy-MM-dd')
-      countByDay[date] = (countByDay[date] || 0) + 1
-    })
-    return Object.entries(countByDay).map(([date, count]) => ({ date, count }))
-  }
+      const date = formatInTimeZone(new Date(t.date), 'yyyy-MM-dd');
+      countByDay[date] = (countByDay[date] || 0) + 1;
+    });
+    return Object.entries(countByDay).map(([date, count]) => ({ date, count }));
+  };
 
-  const calculateUserRanking = (userTotals: UserTotals[]) => {
+  const calculateUserRanking = (userTotals: UserTotals[]): { email: string; total: number }[] => {
     return userTotals
       .map(user => ({ email: user.email, total: user.monthlyTotal }))
       .sort((a, b) => b.total - a.total)
@@ -157,6 +159,8 @@ export default function AnalyticsPage() {
       setSortOrder('asc');
     }
   };
+
+  console.log('Net Income:', netIncome);
 
   return (
     <div className="flex flex-col min-h-screen bg-dot-pattern">

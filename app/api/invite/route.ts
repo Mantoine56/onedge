@@ -30,6 +30,9 @@ export async function POST(request: Request) {
       `You've been invited to join CashMe. Click <a href="${inviteUrl}">here</a> to sign up.`
     );
 
+    // Use invitationRef or remove it
+    console.log('Invitation created with ID:', invitationRef.id);
+
     return NextResponse.json({ success: true, message: 'Invitation sent successfully' });
   } catch (error) {
     console.error('Error sending invitation:', error);

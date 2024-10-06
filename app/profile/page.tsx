@@ -1,53 +1,81 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/app/hooks/useAuth'
 import { useTransactions } from '@/hooks/useTransactions'
 import { Header } from '@/components/Header'
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import { 
   Mail,
-  Phone,
   Key,
   Trash,
   RefreshCw,
   UserPlus,
-  Users,
   PlusCircle
 } from 'lucide-react'
 import { auth, db } from '@/app/firebase'
 import { deleteUser, sendPasswordResetEmail } from 'firebase/auth'
-import { addDoc, collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore'
+import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore'
 import AddTransactionModal from '@/components/AddTransactionModal'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+
+// Update the Employee interface
+interface Employee {
+  id: string;
+  email: string;
+  name: string; // Add this line
+  // Add other properties as needed
+}
 
 export default function ProfilePage() {
   const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false)
   const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false)
   const [isResetDataOpen, setIsResetDataOpen] = useState(false)
-  const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false)
   const [isInviteUserOpen, setIsInviteUserOpen] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null)
   const { user } = useAuth()
   const { deleteAllTransactions } = useTransactions()
   const router = useRouter()
-  const [employees, setEmployees] = useState<any[]>([])
+  const [employees, setEmployees] = useState<Employee[]>([])
   const [isDeleteEmployeeOpen, setIsDeleteEmployeeOpen] = useState(false)
-  const [employeeToDelete, setEmployeeToDelete] = useState<any>(null)
+  const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+
+  const fetchEmployees = useCallback(async () => {
+    if (!user?.uid) return;
+    try {
+      const employeesRef = collection(db, 'users');
+      const q = query(employeesRef, where('adminId', '==', user.uid));
+      const querySnapshot = await getDocs(q);
+      const employeesData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        name: doc.data().name || 'Unknown', // Add this line to provide a default value
+      } as Employee));
+      setEmployees(employeesData);
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+      setNotification({ type: 'error', message: 'Failed to fetch employees. Please try again.' });
+    }
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      fetchEmployees();
+    }
+  }, [user?.role, fetchEmployees]);
 
   const handleResetPassword = async () => {
     if (!user?.email) return
@@ -62,9 +90,9 @@ export default function ProfilePage() {
   }
 
   const handleDeleteAccount = async () => {
-    if (!user) return
+    if (!user || !auth.currentUser) return
     try {
-      await deleteUser(user)
+      await deleteUser(auth.currentUser)
       setNotification({ type: 'success', message: 'Your account has been deleted.' })
       router.push('/login')
     } catch (error) {
@@ -114,20 +142,6 @@ export default function ProfilePage() {
     }
   }
 
-  useEffect(() => {
-    if (user && user.role === 'admin') {
-      fetchEmployees()
-    }
-  }, [user])
-
-  const fetchEmployees = async () => {
-    if (!user) return
-    const employeesQuery = query(collection(db, 'users'), where('adminId', '==', user.uid))
-    const querySnapshot = await getDocs(employeesQuery)
-    const employeesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-    setEmployees(employeesData)
-  }
-
   const handleDeleteEmployee = async () => {
     if (!employeeToDelete) return
     try {
@@ -171,13 +185,6 @@ export default function ProfilePage() {
                 <div className="flex items-center mt-1">
                   <Mail className="h-4 w-4 text-gray-500 mr-2" />
                   <Input id="email" value={user?.email || ''} readOnly />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="phone">Phone</Label>
-                <div className="flex items-center mt-1">
-                  <Phone className="h-4 w-4 text-gray-500 mr-2" />
-                  <Input id="phone" value={user?.phoneNumber || 'Not provided'} readOnly />
                 </div>
               </div>
             </div>

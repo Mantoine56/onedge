@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { auth } from '@/app/firebase/config';
-import { User as FirebaseUser, onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/app/firebase';
 
 export interface User {
