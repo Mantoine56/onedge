@@ -44,7 +44,7 @@ export default function AddTransactionModal({ isOpen, onClose, transactionType }
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add {transactionType === 'income' ? 'Income' : 'Expense'}</DialogTitle>
+          <DialogTitle>Add Transaction</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -78,7 +78,7 @@ export default function AddTransactionModal({ isOpen, onClose, transactionType }
             />
           </div>
           <Button type="submit" className="w-full">
-            Add {transactionType === 'income' ? 'Income' : 'Expense'}
+            Add Transaction
           </Button>
         </form>
       </DialogContent>

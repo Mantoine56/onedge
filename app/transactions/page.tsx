@@ -231,7 +231,7 @@ export default function TransactionsPage() {
       <Button 
         variant="default" 
         className="fixed bottom-4 right-4 bg-black text-white hover:bg-gray-800 rounded-full p-4 shadow-lg"
-        onClick={() => openAddModal('income')} // Open modal for income by default
+        onClick={() => setIsAddModalOpen(true)}
       >
         <PlusCircle className="h-6 w-6" />
         <span className="sr-only">Add Transaction</span>
@@ -241,7 +241,7 @@ export default function TransactionsPage() {
       <AddTransactionModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        transactionType={transactionType}
+        transactionType="income" // You can keep this or remove it if not needed
       />
 
       {notification && (

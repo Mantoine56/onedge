@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from '@/app/hooks/useAuth'
@@ -49,11 +50,19 @@ export function Header({ isAddTransactionOpen, setIsAddTransactionOpen }: Header
   }
 
   return (
-    <header className="flex items-center h-16 px-4 border-b shrink-0 md:px-6">
+    <header className="flex items-center h-16 px-4 border-b shrink-0 md:px-6 bg-white">
       <div className="flex items-center flex-1">
         <Link href="/dashboard" className="flex items-center">
-          <DollarSign className="h-6 w-6 mr-2" />
-          <span className="text-lg font-bold">CashMe</span>
+          <div className="bg-black rounded-md p-1 mr-3" style={{ width: '150px', height: '40px' }}>
+            <Image
+              src="/cashme-logo.png"
+              alt="CashMe Logo"
+              width={148}
+              height={38}
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <span className="text-2xl font-bold">CashMe</span>
         </Link>
       </div>
       <nav className="hidden md:flex items-center space-x-4 md:space-x-6">
