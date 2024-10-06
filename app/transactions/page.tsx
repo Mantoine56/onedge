@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'  // Keep this import
+import { useRouter } from 'next/navigation'
 import { useTransactions, Transaction } from '@/hooks/useTransactions'
 import { Header } from '@/components/Header'
 import { format } from 'date-fns'
@@ -41,22 +41,19 @@ import {
 } from "@/components/ui/alert-dialog"
 import AddTransactionModal from '@/components/AddTransactionModal'
 import { DateRange } from 'react-day-picker'
-import { useAuth } from '@/app/hooks/useAuth';
-import { User } from '@/app/hooks/useAuth';
+import { useAuth } from '@/app/hooks/useAuth'
 
 export default function TransactionsPage() {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const router = useRouter()  // Mark as unused to avoid ESLint error
+  const router = useRouter()
   const { transactions, deleteTransaction } = useTransactions()
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-  const [transactionType, setTransactionType] = useState<'income' | 'expense'>('income')
-  const { user } = useAuth();
+  const { user } = useAuth()
 
   const handleDeleteTransaction = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent the row click event from firing
+    e.stopPropagation();
     try {
       await deleteTransaction(id);
       setNotification({ message: "Transaction deleted successfully", type: 'success' });
@@ -84,13 +81,7 @@ export default function TransactionsPage() {
     return sortOrder === 'asc' ? a.amount - b.amount : b.amount - a.amount
   })
 
-  const openAddModal = (type: 'income' | 'expense') => {
-    setTransactionType(type)
-    setIsAddModalOpen(true)
-  };
-
   const handleRowClick = (transaction: Transaction) => {
-    // Implement the row click functionality here
     console.log('Transaction clicked:', transaction);
   };
 
@@ -106,6 +97,8 @@ export default function TransactionsPage() {
       />
       <main className="flex-1 p-4 md:p-6">
         <h1 className="text-2xl font-bold mb-4">Transactions</h1>
+        
+        {/* Date range and sort controls */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 space-y-2 md:space-y-0">
           <Popover>
             <PopoverTrigger asChild>
@@ -158,6 +151,8 @@ export default function TransactionsPage() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+
+        {/* Transactions table */}
         <div className="rounded-md border">
           <Table>
             <TableHeader>
@@ -241,9 +236,10 @@ export default function TransactionsPage() {
       <AddTransactionModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        transactionType="income" // You can keep this or remove it if not needed
+        transactionType="income"
       />
 
+      {/* Notification */}
       {notification && (
         <div className={`fixed top-4 right-4 p-4 rounded-md ${
           notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
