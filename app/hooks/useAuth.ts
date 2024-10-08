@@ -1,10 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react';
-import { auth } from '@/app/firebase/config';
+import { auth, db } from '@/app/firebase/config';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/app/firebase';
 
 export interface User {
   uid: string;

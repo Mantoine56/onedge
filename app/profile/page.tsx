@@ -17,9 +17,9 @@ import {
   UserPlus,
   PlusCircle
 } from 'lucide-react'
-import { auth, db } from '@/app/firebase'
-import { deleteUser, sendPasswordResetEmail } from 'firebase/auth'
-import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore'
+import { auth, db } from '@/app/firebase/config'
+import { deleteUser, sendPasswordResetEmail, createUserWithEmailAndPassword, updateProfile, getAuth } from 'firebase/auth'
+import { collection, query, where, getDocs, deleteDoc, doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import AddTransactionModal from '@/components/AddTransactionModal'
 import {
   Dialog,
@@ -52,6 +52,9 @@ export default function ProfilePage() {
   const [isDeleteEmployeeOpen, setIsDeleteEmployeeOpen] = useState(false)
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [newEmployeeName, setNewEmployeeName] = useState('');
+  const [newEmployeeEmail, setNewEmployeeEmail] = useState('');
+  const [newEmployeePassword, setNewEmployeePassword] = useState('');
 
   const fetchEmployees = useCallback(async () => {
     if (!user?.uid) return;
@@ -129,16 +132,17 @@ export default function ProfilePage() {
 
       const data = await response.json();
 
-      if (data.success) {
+      if (response.ok) {
         setNotification({ type: 'success', message: 'Invitation sent successfully.' });
         setInviteEmail('');
         setIsInviteUserOpen(false);
       } else {
-        throw new Error(data.message);
+        console.error('Invitation error:', data);
+        throw new Error(data.message || 'Failed to send invitation');
       }
     } catch (error) {
       console.error('Error inviting user:', error);
-      setNotification({ type: 'error', message: 'Failed to send invitation. Please try again.' });
+      setNotification({ type: 'error', message: `Failed to send invitation: ${error instanceof Error ? error.message : 'Unknown error'}` });
     }
   }
 
@@ -154,6 +158,63 @@ export default function ProfilePage() {
     }
     setIsDeleteEmployeeOpen(false)
   }
+
+  const handleCreateEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    try {
+      // Create a secondary auth instance for creating the new user
+      const secondaryAuth = getAuth(auth.app);
+      
+      // Create the user account without signing in
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newEmployeeEmail, newEmployeePassword);
+      const newUser = userCredential.user;
+
+      await updateProfile(newUser, { displayName: newEmployeeName });
+
+      // Add user details to Firestore
+      await setDoc(doc(db, 'users', newUser.uid), {
+        name: newEmployeeName,
+        email: newEmployeeEmail,
+        role: 'employee',
+        adminId: user.uid, // Make sure this is set correctly
+        createdAt: serverTimestamp(),
+      });
+
+      setNotification({ type: 'success', message: 'Employee account created successfully.' });
+      setNewEmployeeName('');
+      setNewEmployeeEmail('');
+      setNewEmployeePassword('');
+      fetchEmployees(); // Refresh the employee list
+    } catch (error) {
+      console.error('Error creating employee account:', error);
+      setNotification({ type: 'error', message: `Failed to create employee account: ${error.message}` });
+    }
+  };
+
+  // Implement proper error handling
+  const handleAddTransaction = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const amount = parseFloat(formData.get('amount') as string);
+    const customerName = formData.get('customerName') as string;
+    const notes = formData.get('notes') as string;
+
+    if (isNaN(amount) || !customerName) {
+      setNotification({ type: 'error', message: 'Please enter a valid amount and customer name.' });
+      return;
+    }
+
+    try {
+      await addTransaction({ amount, customerName, notes });
+      setNotification({ type: 'success', message: 'Transaction added successfully.' });
+      setIsAddTransactionOpen(false);
+    } catch (error) {
+      console.error('Error adding transaction:', error);
+      setNotification({ type: 'error', message: 'Failed to add transaction. Please try again.' });
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-dot-pattern">
@@ -192,11 +253,6 @@ export default function ProfilePage() {
               <Button onClick={() => setIsResetPasswordOpen(true)}>
                 <Key className="mr-2 h-4 w-4" /> Reset Password
               </Button>
-              {user.role === 'admin' && (
-                <Button onClick={() => setIsInviteUserOpen(true)}>
-                  <UserPlus className="mr-2 h-4 w-4" /> Invite User
-                </Button>
-              )}
               <Button variant="destructive" onClick={() => setIsDeleteAccountOpen(true)}>
                 <Trash className="mr-2 h-4 w-4" /> Delete Account
               </Button>
@@ -228,6 +284,43 @@ export default function ProfilePage() {
                 ) : (
                   <p>No employees yet.</p>
                 )}
+              </div>
+            )}
+            {user?.role === 'admin' && (
+              <div className="mt-8">
+                <h2 className="text-2xl font-bold mb-4">Create Employee Account</h2>
+                <form onSubmit={handleCreateEmployee} className="space-y-4">
+                  <div>
+                    <Label htmlFor="employeeName">Name</Label>
+                    <Input
+                      id="employeeName"
+                      value={newEmployeeName}
+                      onChange={(e) => setNewEmployeeName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="employeeEmail">Email</Label>
+                    <Input
+                      id="employeeEmail"
+                      type="email"
+                      value={newEmployeeEmail}
+                      onChange={(e) => setNewEmployeeEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="employeePassword">Password</Label>
+                    <Input
+                      id="employeePassword"
+                      type="password"
+                      value={newEmployeePassword}
+                      onChange={(e) => setNewEmployeePassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <Button type="submit">Create Employee Account</Button>
+                </form>
               </div>
             )}
           </div>

@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { collection, query, where, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
-import { auth, db } from '@/app/firebase';
+import { auth, db } from '@/app/firebase/config';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

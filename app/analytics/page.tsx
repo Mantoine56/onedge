@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Header } from '@/components/Header'
 import { useTransactions, Transaction } from '@/hooks/useTransactions'
 import { useAuth, User as AuthUser } from '@/app/hooks/useAuth'
@@ -27,10 +27,6 @@ import { collection, getDocs, query, where } from 'firebase/firestore'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, ResponsiveContainer } from 'recharts'
 import AddTransactionModal from '@/components/AddTransactionModal'
 import { toEasternTime, formatInTimeZone } from '@/utils/dateUtils'
-
-interface User extends AuthUser {
-  id: string;
-}
 
 interface UserTotals {
   userId: string;
@@ -161,6 +157,16 @@ export default function AnalyticsPage() {
   };
 
   console.log('Net Income:', netIncome);
+
+  // Use useMemo for expensive computations
+  const memoizedIncomeData = useMemo(() => calculateIncomeByDay(transactions), [transactions]);
+  const memoizedTransactionCountData = useMemo(() => calculateTransactionCountByDay(transactions), [transactions]);
+  const memoizedUserRankingData = useMemo(() => calculateUserRanking(userTotals), [userTotals]);
+
+  // Use these memoized values in your component
+  setIncomeData(memoizedIncomeData);
+  setTransactionCountData(memoizedTransactionCountData);
+  setUserRankingData(memoizedUserRankingData);
 
   return (
     <div className="flex flex-col min-h-screen bg-dot-pattern">

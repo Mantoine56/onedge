@@ -84,7 +84,7 @@ export default function TransactionsPage() {
   })
 
   const handleRowClick = (transaction: Transaction) => {
-    console.log('Transaction clicked:', transaction);
+    // console.log('Transaction clicked:', transaction);
   };
 
   const handleDateRangeSelect = (range: DateRange | undefined) => {

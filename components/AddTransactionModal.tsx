@@ -4,10 +4,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useTransactions } from '@/hooks/useTransactions'
-// Remove the unused import
-// import { useAuth } from '@/app/hooks/useAuth'
-// Remove the unused import
-// import { fromEasternTime } from '@/utils/dateUtils'
 
 interface AddTransactionModalProps {
   isOpen: boolean
@@ -21,8 +17,6 @@ export default function AddTransactionModal({ isOpen, onClose }: AddTransactionM
   const [customerName, setCustomerName] = useState('')
   const [notes, setNotes] = useState('')
   const { addTransaction } = useTransactions()
-  // Remove the unused user variable
-  // const { user } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

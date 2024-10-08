@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useTransactions } from '@/hooks/useTransactions'
 import { Header } from '@/components/Header'
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -30,9 +30,11 @@ import {
   PlusCircle,
 } from 'lucide-react'
 import Link from 'next/link'
+import { useAuth } from '@/app/hooks/useAuth';
 
 export default function DashboardPage() {
-  const { transactions, addTransaction, metrics } = useTransactions();
+  const { transactions, loading, addTransaction } = useTransactions();
+  const { user } = useAuth();
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false)
 
   const calculatePercentageChange = (current: number, previous: number) => {
@@ -46,6 +48,41 @@ export default function DashboardPage() {
     const sign = change > 0 ? '+' : '';
     return `${sign}${change.toFixed(1)}%`;
   };
+
+  const metrics = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfYesterday = new Date(startOfToday);
+    startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+    const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const startOfThisYear = new Date(now.getFullYear(), 0, 1);
+    const startOfLastYear = new Date(now.getFullYear() - 1, 0, 1);
+    const startOfLastWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+
+    const totalToday = transactions.filter(t => new Date(t.date) >= startOfToday).reduce((sum, t) => sum + t.amount, 0);
+    const totalYesterday = transactions.filter(t => new Date(t.date) >= startOfYesterday && new Date(t.date) < startOfToday).reduce((sum, t) => sum + t.amount, 0);
+    const totalThisMonth = transactions.filter(t => new Date(t.date) >= startOfThisMonth).reduce((sum, t) => sum + t.amount, 0);
+    const totalLastMonth = transactions.filter(t => new Date(t.date) >= startOfLastMonth && new Date(t.date) < startOfThisMonth).reduce((sum, t) => sum + t.amount, 0);
+    const totalThisYear = transactions.filter(t => new Date(t.date) >= startOfThisYear).reduce((sum, t) => sum + t.amount, 0);
+    const totalLastYear = transactions.filter(t => new Date(t.date) >= startOfLastYear && new Date(t.date) < startOfThisYear).reduce((sum, t) => sum + t.amount, 0);
+
+    const transactionsThisWeek = transactions.filter(t => new Date(t.date) >= startOfLastWeek);
+    const averageTransaction = transactionsThisWeek.length > 0 ? transactionsThisWeek.reduce((sum, t) => sum + t.amount, 0) / transactionsThisWeek.length : 0;
+    const transactionsLastWeek = transactions.filter(t => new Date(t.date) >= new Date(startOfLastWeek.getTime() - 7 * 24 * 60 * 60 * 1000) && new Date(t.date) < startOfLastWeek);
+    const averageTransactionLastWeek = transactionsLastWeek.length > 0 ? transactionsLastWeek.reduce((sum, t) => sum + t.amount, 0) / transactionsLastWeek.length : 0;
+
+    return {
+      totalToday,
+      totalYesterday,
+      totalThisMonth,
+      totalLastMonth,
+      totalThisYear,
+      totalLastYear,
+      averageTransaction,
+      averageTransactionLastWeek
+    };
+  }, [transactions]);
 
   const handleAddTransaction = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
