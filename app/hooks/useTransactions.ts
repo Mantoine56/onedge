@@ -3,8 +3,24 @@ import { collection, query, where, orderBy, onSnapshot, doc, deleteDoc, addDoc, 
 import { db } from '@/app/firebase/config';
 import { useAuth } from './useAuth';
 
+export interface Transaction {
+  id: string;
+  amount: number;
+  customerName: string;
+  notes: string;
+  date: string;
+  // Add any other fields that your transactions have
+}
+
+// Add this new interface for the transaction data
+interface TransactionData {
+  amount: number;
+  customerName: string;
+  notes: string;
+}
+
 export function useTransactions() {
-  const [transactions, setTransactions] = useState([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
@@ -30,7 +46,7 @@ export function useTransactions() {
       const transactionsData = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      } as Transaction));
       setTransactions(transactionsData);
       setLoading(false);
     });
@@ -38,7 +54,7 @@ export function useTransactions() {
     return () => unsubscribe();
   }, [user]);
 
-  const addTransaction = async (transactionData) => {
+  const addTransaction = async (transactionData: TransactionData) => {
     if (!user) return;
 
     const newTransaction = {
@@ -51,7 +67,7 @@ export function useTransactions() {
     await addDoc(collection(db, 'transactions'), newTransaction);
   };
 
-  const deleteTransaction = async (transactionId) => {
+  const deleteTransaction = async (transactionId: string) => {
     if (!user || user.role !== 'admin') return;
 
     await deleteDoc(doc(db, 'transactions', transactionId));

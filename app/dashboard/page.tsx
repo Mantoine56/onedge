@@ -30,11 +30,9 @@ import {
   PlusCircle,
 } from 'lucide-react'
 import Link from 'next/link'
-import { useAuth } from '@/app/hooks/useAuth';
 
 export default function DashboardPage() {
-  const { transactions, loading, addTransaction } = useTransactions();
-  const { user } = useAuth();
+  const { transactions, addTransaction } = useTransactions();
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false)
 
   const calculatePercentageChange = (current: number, previous: number) => {
@@ -84,13 +82,12 @@ export default function DashboardPage() {
     };
   }, [transactions]);
 
-  const handleAddTransaction = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const formData = new FormData(form);
+  const handleAddTransaction = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
     const amount = formData.get('amount') as string;
-    const notes = formData.get('notes') as string;
     const customerName = formData.get('customerName') as string;
+    const notes = formData.get('notes') as string;
 
     try {
       await addTransaction({
@@ -101,6 +98,7 @@ export default function DashboardPage() {
       setIsAddTransactionOpen(false);
     } catch (error) {
       console.error('Error adding transaction:', error);
+      // You might want to show an error message to the user here
     }
   };
 

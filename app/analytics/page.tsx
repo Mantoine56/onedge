@@ -1,16 +1,10 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, forwardRef } from 'react'
 import { Header } from '@/components/Header'
 import { useTransactions, Transaction } from '@/hooks/useTransactions'
 import { useAuth, User as AuthUser } from '@/app/hooks/useAuth'
 import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
 import {
   Table,
   TableBody,
@@ -19,14 +13,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { DateRange } from 'react-day-picker'
-import { format, startOfDay, startOfMonth, startOfYear } from 'date-fns'
+import { startOfDay, startOfMonth, startOfYear, isWithinInterval } from 'date-fns'
 import { Calendar as CalendarIcon, ChevronUp, ChevronDown, PlusCircle } from 'lucide-react'
 import { db } from '@/app/firebase/config'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, ResponsiveContainer } from 'recharts'
 import AddTransactionModal from '@/components/AddTransactionModal'
 import { toEasternTime, formatInTimeZone } from '@/utils/dateUtils'
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+
+interface User extends AuthUser {
+  id: string;
+}
 
 interface UserTotals {
   userId: string;
@@ -39,8 +38,25 @@ interface UserTotals {
 type SortField = 'email' | 'dailyTotal' | 'monthlyTotal' | 'yearlyTotal';
 type SortOrder = 'asc' | 'desc';
 
+const CustomInput = forwardRef<HTMLButtonElement, { value?: string; onClick?: () => void }>(
+  ({ value, onClick }, ref) => (
+    <Button
+      variant="outline"
+      onClick={onClick}
+      ref={ref}
+      className="w-full justify-start text-left font-normal"
+    >
+      <CalendarIcon className="mr-2 h-4 w-4" />
+      {value || "Pick a date range"}
+    </Button>
+  )
+);
+
+CustomInput.displayName = 'CustomInput';
+
 export default function AnalyticsPage() {
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
+  const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([null, null]);
+  const [startDate, endDate] = dateRange;
   const { transactions } = useTransactions()
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const { user } = useAuth()
@@ -51,14 +67,14 @@ export default function AnalyticsPage() {
   const [transactionCountData, setTransactionCountData] = useState<{ date: string; count: number }[]>([])
   const [userRankingData, setUserRankingData] = useState<{ email: string; total: number }[]>([])
 
-  const calculateTotals = useCallback((users: User[]): UserTotals[] => {
+  const calculateTotals = useCallback((users: User[], filteredTransactions: Transaction[]): UserTotals[] => {
     const today = toEasternTime(new Date())
     const startOfToday = startOfDay(today)
     const startOfThisMonth = startOfMonth(today)
     const startOfThisYear = startOfYear(today)
 
     return users.map(user => {
-      const userTransactions = transactions.filter(t => t.userId === user.id)
+      const userTransactions = filteredTransactions.filter(t => t.userId === user.id)
       return {
         userId: user.id,
         email: user.email || '',
@@ -73,7 +89,15 @@ export default function AnalyticsPage() {
           .reduce((sum, t) => sum + Math.abs(t.amount), 0),
       }
     })
-  }, [transactions]);
+  }, []);
+
+  const filterTransactions = useCallback((transactions: Transaction[], start: Date | null, end: Date | null) => {
+    if (!start || !end) return transactions;
+    return transactions.filter(transaction => {
+      const transactionDate = toEasternTime(new Date(transaction.date));
+      return isWithinInterval(transactionDate, { start, end });
+    });
+  }, []);
 
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -84,14 +108,15 @@ export default function AnalyticsPage() {
         const employees = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User))
         
         const currentUser: User = { ...user, id: user.uid }
-        const totals = calculateTotals([currentUser, ...employees])
+        const filteredTransactions = filterTransactions(transactions, startDate, endDate)
+        const totals = calculateTotals([currentUser, ...employees], filteredTransactions)
         setUserTotals(totals)
 
         // Calculate chart data
-        const incomeByDay = calculateIncomeByDay(transactions)
+        const incomeByDay = calculateIncomeByDay(filteredTransactions)
         setIncomeData(incomeByDay)
 
-        const transactionCountByDay = calculateTransactionCountByDay(transactions)
+        const transactionCountByDay = calculateTransactionCountByDay(filteredTransactions)
         setTransactionCountData(transactionCountByDay)
 
         const userRanking = calculateUserRanking(totals)
@@ -100,7 +125,7 @@ export default function AnalyticsPage() {
     }
 
     fetchEmployees()
-  }, [user, transactions, calculateTotals])
+  }, [user, transactions, calculateTotals, filterTransactions, startDate, endDate])
 
   const calculateIncomeByDay = (transactions: Transaction[]): { date: string; income: number }[] => {
     const incomeByDay: { [key: string]: number } = {};
@@ -126,21 +151,6 @@ export default function AnalyticsPage() {
       .sort((a, b) => b.total - a.total)
   }
 
-  const filteredTransactions = transactions.filter(transaction => {
-    if (!dateRange || !dateRange.from || !dateRange.to) return true;
-    return transaction.date >= dateRange.from && transaction.date <= dateRange.to;
-  })
-
-  const totalIncome = filteredTransactions
-    .filter(t => t.amount > 0)
-    .reduce((sum, t) => sum + t.amount, 0)
-
-  const totalExpenses = filteredTransactions
-    .filter(t => t.amount < 0)
-    .reduce((sum, t) => sum + Math.abs(t.amount), 0)
-
-  const netIncome = totalIncome - totalExpenses
-
   const sortedUserTotals = [...userTotals].sort((a, b) => {
     if (a[sortField] < b[sortField]) return sortOrder === 'asc' ? -1 : 1;
     if (a[sortField] > b[sortField]) return sortOrder === 'asc' ? 1 : -1;
@@ -156,18 +166,6 @@ export default function AnalyticsPage() {
     }
   };
 
-  console.log('Net Income:', netIncome);
-
-  // Use useMemo for expensive computations
-  const memoizedIncomeData = useMemo(() => calculateIncomeByDay(transactions), [transactions]);
-  const memoizedTransactionCountData = useMemo(() => calculateTransactionCountByDay(transactions), [transactions]);
-  const memoizedUserRankingData = useMemo(() => calculateUserRanking(userTotals), [userTotals]);
-
-  // Use these memoized values in your component
-  setIncomeData(memoizedIncomeData);
-  setTransactionCountData(memoizedTransactionCountData);
-  setUserRankingData(memoizedUserRankingData);
-
   return (
     <div className="flex flex-col min-h-screen bg-dot-pattern">
       <Header 
@@ -179,34 +177,16 @@ export default function AnalyticsPage() {
         
         {/* Date range picker */}
         <div className="mb-4">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-[300px] justify-start text-left font-normal">
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange?.from ? (
-                  dateRange.to ? (
-                    <>
-                      {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
-                    </>
-                  ) : (
-                    format(dateRange.from, "LLL dd, y")
-                  )
-                ) : (
-                  <span>Pick a date range</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={dateRange?.from}
-                selected={dateRange}
-                onSelect={setDateRange}
-                numberOfMonths={2}
-              />
-            </PopoverContent>
-          </Popover>
+          <DatePicker
+            selectsRange={true}
+            startDate={startDate}
+            endDate={endDate}
+            onChange={(update: [Date | null, Date | null]) => {
+              setDateRange(update);
+            }}
+            isClearable={true}
+            customInput={<CustomInput />}
+          />
         </div>
 
         {/* User totals table */}

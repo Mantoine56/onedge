@@ -28,7 +28,11 @@ export async function POST(request: Request) {
       console.log('Invitation added to Firestore:', invitationRef.id);
     } catch (firestoreError) {
       console.error('Firestore error:', firestoreError);
-      return NextResponse.json({ success: false, message: 'Failed to create invitation in database', error: firestoreError.message }, { status: 500 });
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Failed to create invitation in database', 
+        error: firestoreError instanceof Error ? firestoreError.message : 'Unknown error'
+      }, { status: 500 });
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -43,13 +47,21 @@ export async function POST(request: Request) {
       console.log('Invitation email sent successfully');
     } catch (emailError) {
       console.error('Email sending error:', emailError);
-      return NextResponse.json({ success: false, message: 'Failed to send invitation email', error: emailError.message }, { status: 500 });
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Failed to send invitation email', 
+        error: emailError instanceof Error ? emailError.message : 'Unknown error'
+      }, { status: 500 });
     }
 
     console.log('Invitation process completed successfully');
     return NextResponse.json({ success: true, message: 'Invitation sent successfully' });
   } catch (error) {
     console.error('Error in invitation process:', error);
-    return NextResponse.json({ success: false, message: error.message || 'Failed to send invitation', error: error.stack }, { status: 500 });
+    return NextResponse.json({ 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Failed to send invitation', 
+      error: error instanceof Error ? error.stack : 'Unknown error'
+    }, { status: 500 });
   }
 }

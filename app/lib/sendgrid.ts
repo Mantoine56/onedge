@@ -15,8 +15,9 @@ export async function sendEmail(to: string, subject: string, html: string) {
     console.log('Email sent successfully');
   } catch (error) {
     console.error('Error sending email:', error);
-    if (error.response) {
-      console.error(error.response.body);
+    if (error && typeof error === 'object' && 'response' in error) {
+      const sgError = error as { response: { body: unknown } };
+      console.error(sgError.response.body);
     }
     throw error;
   }

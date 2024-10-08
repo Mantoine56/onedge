@@ -1,25 +1,17 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-// import { useRouter } from 'next/navigation'
+import { useState, useEffect, useCallback, forwardRef } from 'react'
 import { useTransactions, Transaction } from '@/hooks/useTransactions'
 import { Header } from '@/components/Header'
-// import { format } from 'date-fns'
 import { Calendar as CalendarIcon, ChevronDown, PlusCircle, Trash2 } from 'lucide-react'
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
 import {
   Table,
   TableBody,
@@ -40,15 +32,38 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import AddTransactionModal from '@/components/AddTransactionModal'
-import { DateRange } from 'react-day-picker'
 import { useAuth } from '@/app/hooks/useAuth'
 import { toEasternTime, formatInTimeZone } from '@/utils/dateUtils'
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { isWithinInterval } from 'date-fns'
+import { format, parseISO, isValid } from 'date-fns';
+import { utcToZonedTime } from 'date-fns-tz';
+import { isDate } from 'date-fns';
+
+const CustomInput = forwardRef<HTMLButtonElement, { value?: string; onClick?: () => void }>(
+  ({ value, onClick }, ref) => (
+    <Button
+      variant="outline"
+      onClick={onClick}
+      ref={ref}
+      className="w-full md:w-auto justify-start text-left font-normal"
+    >
+      <CalendarIcon className="mr-2 h-4 w-4" />
+      {value || "Pick a date range"}
+    </Button>
+  )
+);
+
+CustomInput.displayName = 'CustomInput';
+
+type SortOption = 'newest' | 'oldest' | 'highest' | 'lowest';
 
 export default function TransactionsPage() {
-  // const router = useRouter()
   const { transactions, deleteTransaction } = useTransactions()
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([null, null]);
+  const [startDate, endDate] = dateRange;
+  const [sortOption, setSortOption] = useState<SortOption>('newest')
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const { user } = useAuth()
@@ -73,22 +88,35 @@ export default function TransactionsPage() {
     }
   }, [notification]);
 
-  const filteredTransactions = transactions.filter(transaction => {
-    if (!dateRange || !dateRange.from || !dateRange.to) return true;
-    const transactionDate = toEasternTime(new Date(transaction.date));
-    return transactionDate >= dateRange.from && transactionDate <= dateRange.to;
-  })
+  const filterTransactions = useCallback((transactions: Transaction[], start: Date | null, end: Date | null) => {
+    if (!start || !end) return transactions;
+    return transactions.filter(transaction => {
+      const transactionDate = toEasternTime(new Date(transaction.date));
+      return isWithinInterval(transactionDate, { start, end });
+    });
+  }, []);
+
+  const filteredTransactions = filterTransactions(transactions, startDate, endDate);
 
   const sortedTransactions = [...filteredTransactions].sort((a, b) => {
-    return sortOrder === 'asc' ? a.amount - b.amount : b.amount - a.amount
-  })
+    switch (sortOption) {
+      case 'newest':
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      case 'oldest':
+        return new Date(a.date).getTime() - new Date(b.date).getTime();
+      case 'highest':
+        return b.amount - a.amount;
+      case 'lowest':
+        return a.amount - b.amount;
+      default:
+        return 0;
+    }
+  });
 
   const handleRowClick = (transaction: Transaction) => {
-    // console.log('Transaction clicked:', transaction);
-  };
-
-  const handleDateRangeSelect = (range: DateRange | undefined) => {
-    setDateRange(range);
+    // Implement the row click functionality here
+    console.log('Transaction clicked:', transaction);
+    // You can add more logic here, such as opening a modal with transaction details
   };
 
   return (
@@ -102,53 +130,47 @@ export default function TransactionsPage() {
         
         {/* Date range and sort controls */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 space-y-2 md:space-y-0">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full md:w-auto justify-start text-left font-normal">
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange?.from ? (
-                  dateRange.to ? (
-                    <>
-                      {formatInTimeZone(new Date(dateRange.from), "LLL dd, y")} - {formatInTimeZone(new Date(dateRange.to), "LLL dd, y")}
-                    </>
-                  ) : (
-                    formatInTimeZone(new Date(dateRange.from), "LLL dd, y")
-                  )
-                ) : (
-                  <span>Pick a date range</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={dateRange?.from}
-                selected={dateRange}
-                onSelect={handleDateRangeSelect}
-                numberOfMonths={2}
-              />
-            </PopoverContent>
-          </Popover>
+          <DatePicker
+            selectsRange={true}
+            startDate={startDate}
+            endDate={endDate}
+            onChange={(update: [Date | null, Date | null]) => {
+              setDateRange(update);
+            }}
+            isClearable={true}
+            customInput={<CustomInput />}
+          />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="w-full md:w-auto">
-                Sort by Amount
+                Sort by: {sortOption.charAt(0).toUpperCase() + sortOption.slice(1)}
                 <ChevronDown className="ml-2 h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuCheckboxItem
-                checked={sortOrder === 'desc'}
-                onCheckedChange={() => setSortOrder('desc')}
+                checked={sortOption === 'newest'}
+                onCheckedChange={() => setSortOption('newest')}
               >
-                Highest to Lowest
+                Newest First
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
-                checked={sortOrder === 'asc'}
-                onCheckedChange={() => setSortOrder('asc')}
+                checked={sortOption === 'oldest'}
+                onCheckedChange={() => setSortOption('oldest')}
               >
-                Lowest to Highest
+                Oldest First
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={sortOption === 'highest'}
+                onCheckedChange={() => setSortOption('highest')}
+              >
+                Highest Amount
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={sortOption === 'lowest'}
+                onCheckedChange={() => setSortOption('lowest')}
+              >
+                Lowest Amount
               </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -160,7 +182,7 @@ export default function TransactionsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Customer</TableHead>
-                <TableHead>Date</TableHead>
+                <TableHead>Date & Time</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Notes</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -183,7 +205,37 @@ export default function TransactionsPage() {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>{formatInTimeZone(new Date(transaction.date), 'MMM d, yyyy')}</TableCell>
+                  <TableCell>
+                    {(() => {
+                      let date: Date;
+                      if (typeof transaction.date === 'string') {
+                        // If it's a string, try to parse it
+                        date = parseISO(transaction.date);
+                      } else if (transaction.date instanceof Date) {
+                        // If it's already a Date object
+                        date = transaction.date;
+                      } else {
+                        // If it's neither a string nor a Date, use current date as fallback
+                        console.error('Invalid date format for transaction:', transaction);
+                        date = new Date();
+                      }
+
+                      // Ensure the date is valid
+                      if (!isValid(date)) {
+                        console.error('Invalid date for transaction:', transaction);
+                        date = new Date(); // Use current date as fallback
+                      }
+
+                      const formattedDate = format(date, 'MMMM d, yyyy h:mm a');
+                      const dayOfWeek = format(date, 'EEEE');
+                      return (
+                        <div>
+                          <p>{formattedDate}</p>
+                          <p className="text-xs text-gray-500">{dayOfWeek}</p>
+                        </div>
+                      );
+                    })()}
+                  </TableCell>
                   <TableCell className="text-right">${transaction.amount.toFixed(2)}</TableCell>
                   <TableCell>{transaction.notes}</TableCell>
                   <TableCell className="text-right">

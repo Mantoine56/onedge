@@ -14,7 +14,6 @@ import {
   Key,
   Trash,
   RefreshCw,
-  UserPlus,
   PlusCircle
 } from 'lucide-react'
 import { auth, db } from '@/app/firebase/config'
@@ -189,30 +188,10 @@ export default function ProfilePage() {
       fetchEmployees(); // Refresh the employee list
     } catch (error) {
       console.error('Error creating employee account:', error);
-      setNotification({ type: 'error', message: `Failed to create employee account: ${error.message}` });
-    }
-  };
-
-  // Implement proper error handling
-  const handleAddTransaction = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const amount = parseFloat(formData.get('amount') as string);
-    const customerName = formData.get('customerName') as string;
-    const notes = formData.get('notes') as string;
-
-    if (isNaN(amount) || !customerName) {
-      setNotification({ type: 'error', message: 'Please enter a valid amount and customer name.' });
-      return;
-    }
-
-    try {
-      await addTransaction({ amount, customerName, notes });
-      setNotification({ type: 'success', message: 'Transaction added successfully.' });
-      setIsAddTransactionOpen(false);
-    } catch (error) {
-      console.error('Error adding transaction:', error);
-      setNotification({ type: 'error', message: 'Failed to add transaction. Please try again.' });
+      setNotification({ 
+        type: 'error', 
+        message: `Failed to create employee account: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
     }
   };
 
