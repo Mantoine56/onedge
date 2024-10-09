@@ -1,12 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import Link from 'next/link'
 import { format } from 'date-fns'
-import { Calendar as CalendarIcon, ChevronDown, DollarSign, Trash2, UserCircle, Menu, LogOut, User, PlusCircle } from 'lucide-react'
+import { CalendarIcon, ChevronDown, DollarSign, Trash2, UserCircle, Menu, LogOut, User, PlusCircle } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
 import {
 DropdownMenu,
 DropdownMenuCheckboxItem,
@@ -57,6 +56,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { DateRange } from 'react-day-picker'
+import { DayPicker } from "react-day-picker"
 
 type Transaction = {
 id: string
@@ -74,7 +74,7 @@ const initialTransactions: Transaction[] = [
 { id: '5', customer: 'Liam Johnson', email: 'liam@example.com', amount: 550.00, date: new Date(2023, 5, 5) },
 ]
 
-export function Page() {
+export default function TransactionsPage() {
 const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions)
 const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
 const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
@@ -100,9 +100,15 @@ const sortedTransactions = [...filteredTransactions].sort((a, b) => {
   return sortOrder === 'asc' ? a.amount - b.amount : b.amount - a.amount
 })
 
-const handleDateRangeSelect = (range: DateRange | undefined) => {
-  setDateRange(range);
-};
+const handleDateRangeSelect = useCallback((selectedDate: Date | DateRange | undefined) => {
+  if (selectedDate && 'from' in selectedDate) {
+    // It's a DateRange
+    setDateRange(selectedDate);
+  } else {
+    // It's a Date or undefined, reset the range
+    setDateRange({ from: selectedDate as Date | undefined, to: undefined });
+  }
+}, []);
 
 return (
   <div className="flex flex-col min-h-screen bg-dot-pattern">
@@ -217,12 +223,12 @@ return (
                   format(dateRange.from, "LLL dd, y")
                 )
               ) : (
-                <span>Pick a date range</span>
+                <span>Pick a date</span>
               )}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
+            <DayPicker
               mode="range"
               defaultMonth={dateRange?.from}
               selected={dateRange}

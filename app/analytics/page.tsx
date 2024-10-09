@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, forwardRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Header } from '@/components/Header'
 import { useTransactions, Transaction } from '@/hooks/useTransactions'
 import { useAuth, User as AuthUser } from '@/app/hooks/useAuth'
@@ -20,8 +20,9 @@ import { collection, getDocs, query, where } from 'firebase/firestore'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, ResponsiveContainer } from 'recharts'
 import AddTransactionModal from '@/components/AddTransactionModal'
 import { toEasternTime, formatInTimeZone } from '@/utils/dateUtils'
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
+import { DayPicker, DateRange } from 'react-day-picker';
+import 'react-day-picker/dist/style.css';
+import { format } from 'date-fns';
 
 interface User extends AuthUser {
   id: string;
@@ -38,21 +39,18 @@ interface UserTotals {
 type SortField = 'email' | 'dailyTotal' | 'monthlyTotal' | 'yearlyTotal';
 type SortOrder = 'asc' | 'desc';
 
-const CustomInput = forwardRef<HTMLButtonElement, { value?: string; onClick?: () => void }>(
-  ({ value, onClick }, ref) => (
-    <Button
-      variant="outline"
-      onClick={onClick}
-      ref={ref}
-      className="w-full justify-start text-left font-normal"
-    >
-      <CalendarIcon className="mr-2 h-4 w-4" />
-      {value || "Pick a date range"}
-    </Button>
-  )
+const DateRangePickerButton = ({ onClick, dateRange }: { onClick: () => void, dateRange: [Date | null, Date | null] }) => (
+  <Button
+    variant="outline"
+    onClick={onClick}
+    className="w-full md:w-auto justify-start text-left font-normal"
+  >
+    <CalendarIcon className="mr-2 h-4 w-4" />
+    {dateRange[0] && dateRange[1]
+      ? `${format(dateRange[0], 'PP')} - ${format(dateRange[1], 'PP')}`
+      : "Pick a date range"}
+  </Button>
 );
-
-CustomInput.displayName = 'CustomInput';
 
 export default function AnalyticsPage() {
   const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([null, null]);
@@ -66,6 +64,7 @@ export default function AnalyticsPage() {
   const [incomeData, setIncomeData] = useState<{ date: string; income: number }[]>([])
   const [transactionCountData, setTransactionCountData] = useState<{ date: string; count: number }[]>([])
   const [userRankingData, setUserRankingData] = useState<{ email: string; total: number }[]>([])
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const calculateTotals = useCallback((users: User[], filteredTransactions: Transaction[]): UserTotals[] => {
     const today = toEasternTime(new Date())
@@ -166,6 +165,17 @@ export default function AnalyticsPage() {
     }
   };
 
+  const handleDateRangeSelect = (range: DateRange | undefined) => {
+    if (range) {
+      setDateRange([range.from || null, range.to || null]);
+      if (range.from && range.to) {
+        setIsCalendarOpen(false);
+      }
+    } else {
+      setDateRange([null, null]);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-dot-pattern">
       <Header 
@@ -176,17 +186,24 @@ export default function AnalyticsPage() {
         <h1 className="text-2xl font-bold mb-4">Analytics</h1>
         
         {/* Date range picker */}
-        <div className="mb-4">
-          <DatePicker
-            selectsRange={true}
-            startDate={startDate}
-            endDate={endDate}
-            onChange={(update: [Date | null, Date | null]) => {
-              setDateRange(update);
-            }}
-            isClearable={true}
-            customInput={<CustomInput />}
+        <div className="mb-4 relative">
+          <DateRangePickerButton
+            onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+            dateRange={dateRange}
           />
+          {isCalendarOpen && (
+            <div className="absolute z-10 mt-1 bg-white border rounded-md shadow-lg">
+              <DayPicker
+                mode="range"
+                selected={{ 
+                  from: startDate || undefined, 
+                  to: endDate || undefined 
+                }}
+                onSelect={handleDateRangeSelect}
+                footer={false}
+              />
+            </div>
+          )}
         </div>
 
         {/* User totals table */}

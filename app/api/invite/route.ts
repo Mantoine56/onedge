@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import admin from 'firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '@/app/firebase/admin';
 import { sendEmail } from '@/app/lib/sendgrid';
 import crypto from 'crypto';
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
         role: 'employee',
         status: 'pending',
         token,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
       });
       console.log('Invitation added to Firestore:', invitationRef.id);
     } catch (firestoreError) {

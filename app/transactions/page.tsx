@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, forwardRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTransactions, Transaction } from '@/hooks/useTransactions'
 import { Header } from '@/components/Header'
 import { Calendar as CalendarIcon, ChevronDown, PlusCircle, Trash2 } from 'lucide-react'
@@ -33,29 +33,24 @@ import {
 } from "@/components/ui/alert-dialog"
 import AddTransactionModal from '@/components/AddTransactionModal'
 import { useAuth } from '@/app/hooks/useAuth'
-import { toEasternTime, formatInTimeZone } from '@/utils/dateUtils'
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
+import { toEasternTime } from '@/utils/dateUtils'
 import { isWithinInterval } from 'date-fns'
 import { format, parseISO, isValid } from 'date-fns';
-import { utcToZonedTime } from 'date-fns-tz';
-import { isDate } from 'date-fns';
+import { DayPicker, DateRange } from 'react-day-picker';
+import 'react-day-picker/dist/style.css';
 
-const CustomInput = forwardRef<HTMLButtonElement, { value?: string; onClick?: () => void }>(
-  ({ value, onClick }, ref) => (
-    <Button
-      variant="outline"
-      onClick={onClick}
-      ref={ref}
-      className="w-full md:w-auto justify-start text-left font-normal"
-    >
-      <CalendarIcon className="mr-2 h-4 w-4" />
-      {value || "Pick a date range"}
-    </Button>
-  )
+const DateRangePickerButton = ({ onClick, dateRange }: { onClick: () => void, dateRange: [Date | null, Date | null] }) => (
+  <Button
+    variant="outline"
+    onClick={onClick}
+    className="w-full md:w-auto justify-start text-left font-normal"
+  >
+    <CalendarIcon className="mr-2 h-4 w-4" />
+    {dateRange[0] && dateRange[1]
+      ? `${format(dateRange[0], 'PP')} - ${format(dateRange[1], 'PP')}`
+      : "Pick a date range"}
+  </Button>
 );
-
-CustomInput.displayName = 'CustomInput';
 
 type SortOption = 'newest' | 'oldest' | 'highest' | 'lowest';
 
@@ -67,6 +62,7 @@ export default function TransactionsPage() {
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const { user } = useAuth()
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const handleDeleteTransaction = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -119,6 +115,17 @@ export default function TransactionsPage() {
     // You can add more logic here, such as opening a modal with transaction details
   };
 
+  const handleDateRangeSelect = (range: DateRange | undefined) => {
+    if (range) {
+      setDateRange([range.from || null, range.to || null]);
+      if (range.from && range.to) {
+        setIsCalendarOpen(false);
+      }
+    } else {
+      setDateRange([null, null]);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-dot-pattern">
       <Header 
@@ -130,16 +137,22 @@ export default function TransactionsPage() {
         
         {/* Date range and sort controls */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 space-y-2 md:space-y-0">
-          <DatePicker
-            selectsRange={true}
-            startDate={startDate}
-            endDate={endDate}
-            onChange={(update: [Date | null, Date | null]) => {
-              setDateRange(update);
-            }}
-            isClearable={true}
-            customInput={<CustomInput />}
-          />
+          <div className="relative">
+            <DateRangePickerButton
+              onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+              dateRange={dateRange}
+            />
+            {isCalendarOpen && (
+              <div className="absolute z-10 mt-1 bg-white border rounded-md shadow-lg">
+                <DayPicker
+                  mode="range"
+                  selected={{ from: startDate || undefined, to: endDate || undefined }}
+                  onSelect={handleDateRangeSelect}
+                  footer={false}
+                />
+              </div>
+            )}
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="w-full md:w-auto">

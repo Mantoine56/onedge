@@ -11,10 +11,10 @@ export interface User {
   displayName: string | null;
   role: 'admin' | 'employee' | null;
   creationTime?: string;
-  adminId?: string; // Add this line
+  adminId?: string;
 }
 
-export function useAuth() {
+export function useAuthState() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -29,7 +29,7 @@ export function useAuth() {
           displayName: firebaseUser.displayName,
           role: userData?.role || null,
           creationTime: firebaseUser.metadata.creationTime,
-          adminId: userData?.adminId, // Add this line
+          adminId: userData?.adminId,
         });
       } else {
         setUser(null);
@@ -51,3 +51,6 @@ export function useAuth() {
 
   return { user, loading, logout };
 }
+
+// Export the useAuth hook from here
+export { useAuth } from './AuthContext';

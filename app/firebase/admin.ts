@@ -1,16 +1,56 @@
-import admin from 'firebase-admin';
-import { getApps } from 'firebase-admin/app';
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+import dotenv from 'dotenv';
+import path from 'path';
 
-if (!getApps().length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    }),
-    databaseURL: process.env.FIREBASE_DATABASE_URL,
-  });
+// Load environment variables
+const envPath = path.resolve(process.cwd(), '.env.local');
+console.log('Loading environment variables from:', envPath);
+dotenv.config({ path: envPath });
+
+// Define the type for the service account
+interface ServiceAccount {
+  projectId: string;
+  clientEmail: string;
+  privateKey: string;
 }
 
-export const adminDb = admin.firestore();
-export const adminAuth = admin.auth();
+// Initialize Firebase Admin SDK
+if (!getApps().length) {
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+  console.log('Environment variables:');
+  console.log('FIREBASE_PROJECT_ID:', projectId ? 'Set' : 'Not set');
+  console.log('FIREBASE_CLIENT_EMAIL:', clientEmail ? 'Set' : 'Not set');
+  console.log('FIREBASE_PRIVATE_KEY:', privateKey ? 'Set' : 'Not set');
+
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error('Missing Firebase configuration. Please check your environment variables.');
+  }
+
+  const serviceAccount: ServiceAccount = {
+    projectId,
+    clientEmail,
+    privateKey: privateKey.replace(/\\n/g, '\n'),
+  };
+
+  console.log('Service Account:', JSON.stringify({
+    projectId,
+    clientEmail,
+    privateKeyLength: privateKey.length,
+  }, null, 2));
+
+  try {
+    initializeApp({
+      credential: cert(serviceAccount),
+    });
+    console.log('Firebase Admin SDK initialized successfully');
+  } catch (error) {
+    console.error('Error initializing Firebase Admin SDK:', error);
+    throw error;
+  }
+}
+
+export const adminDb = getFirestore();
