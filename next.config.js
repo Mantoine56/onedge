@@ -2,6 +2,12 @@
 const nextConfig = {
   reactStrictMode: true,
   experimental: {},
+  output: 'export',  // Add this line to enable static exports
+  images: {
+    unoptimized: true,
+    loader: 'custom',
+    loaderFile: './imageLoader.js',
+  },
 }
 
 module.exports = {

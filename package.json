@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && next export && npm run copy-public",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "copy-public": "cp -r public/* out/"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.1",
